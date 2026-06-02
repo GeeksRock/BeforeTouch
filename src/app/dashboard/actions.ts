@@ -1,6 +1,7 @@
 'use server'
 
 import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 interface Rotation {
   id: string
@@ -23,11 +24,19 @@ export type DashboardData =
 
 export interface VolunteerOfferInput {
   rotation_id: string
-  employee_id: string
   volunteer_type: string
 }
 
-export async function fetchDashboard(userId: string): Promise<DashboardData> {
+async function getAuthenticatedUserId(): Promise<string> {
+  const authClient = await createSupabaseServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  return user.id
+}
+
+export async function fetchDashboard(): Promise<DashboardData> {
+  const userId = await getAuthenticatedUserId()
+
   const { data: employee, error: empError } = await supabase
     .from('employee')
     .select('id, name, company_id')
@@ -79,6 +88,12 @@ export async function fetchDashboard(userId: string): Promise<DashboardData> {
 }
 
 export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<void> {
-  const { error } = await supabase.from('volunteer_offer').insert([{ ...data, status: 'pending' }])
+  const userId = await getAuthenticatedUserId()
+  const { error } = await supabase.from('volunteer_offer').insert([{
+    rotation_id: data.rotation_id,
+    employee_id: userId,
+    volunteer_type: data.volunteer_type,
+    status: 'pending',
+  }])
   if (error) throw new Error(error.message)
 }

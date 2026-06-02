@@ -1,7 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { fetchDashboard, submitVolunteerOffer, type DashboardData } from './actions'
 
 function OnCallView({ data }: { data: Extract<DashboardData, { type: 'on-call' }> }) {
@@ -39,13 +38,7 @@ function OnCallView({ data }: { data: Extract<DashboardData, { type: 'on-call' }
   )
 }
 
-function NotOnCallView({
-  data,
-  userId,
-}: {
-  data: Extract<DashboardData, { type: 'not-on-call' }>
-  userId: string
-}) {
+function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-call' }> }) {
   const { onCallEmployeeName, rotation, allowedVolunteerTypes } = data
   const [selectedType, setSelectedType] = useState(allowedVolunteerTypes[0] ?? '')
   const [submitting, setSubmitting] = useState(false)
@@ -57,11 +50,7 @@ function NotOnCallView({
     setSubmitting(true)
     setError(null)
     try {
-      await submitVolunteerOffer({
-        rotation_id: rotation.id,
-        employee_id: userId,
-        volunteer_type: selectedType,
-      })
+      await submitVolunteerOffer({ rotation_id: rotation.id, volunteer_type: selectedType })
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -119,48 +108,22 @@ function NotOnCallView({
   )
 }
 
-function DashboardContent() {
-  const searchParams = useSearchParams()
-  const userId = searchParams.get('user_id') ?? ''
-
+export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!userId) {
-      setLoading(false)
-      return
-    }
-    fetchDashboard(userId)
+    fetchDashboard()
       .then(setData)
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load'))
       .finally(() => setLoading(false))
-  }, [userId])
+  }, [])
 
-  if (!userId) {
-    return <main className="max-w-lg mx-auto p-8">No user ID provided.</main>
-  }
-  if (loading) {
-    return <main className="max-w-lg mx-auto p-8">Loading…</main>
-  }
-  if (error) {
-    return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
-  }
-  if (!data) {
-    return null
-  }
+  if (loading) return <main className="max-w-lg mx-auto p-8">Loading…</main>
+  if (error) return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
+  if (!data) return null
 
-  if (data.type === 'on-call') {
-    return <OnCallView data={data} />
-  }
-  return <NotOnCallView data={data} userId={userId} />
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense>
-      <DashboardContent />
-    </Suspense>
-  )
+  if (data.type === 'on-call') return <OnCallView data={data} />
+  return <NotOnCallView data={data} />
 }
