@@ -12,13 +12,27 @@ function makeRequest(path: string) {
   return new NextRequest(new URL(path, 'http://localhost'))
 }
 
+function makeQueryBuilder(data: unknown, error: unknown = null) {
+  const result = { data, error }
+  const builder: Record<string, unknown> = {
+    single: vi.fn().mockResolvedValue(result),
+    then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
+  }
+  builder.eq = vi.fn().mockReturnValue(builder)
+  builder.select = vi.fn().mockReturnValue(builder)
+  return builder
+}
+
 describe('proxy', () => {
   const getUserMock = vi.fn()
+  const fromMock = vi.fn()
 
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(createServerClient).mockReturnValue({
       auth: { getUser: getUserMock },
+      from: fromMock,
     } as never)
   })
 
@@ -51,16 +65,34 @@ describe('proxy', () => {
   describe('authenticated requests to protected routes', () => {
     beforeEach(() => {
       getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      fromMock.mockReturnValue(makeQueryBuilder({ is_active: true }))
     })
 
-    it('passes through /dashboard', async () => {
+    it('passes through /dashboard for an active employee', async () => {
       const res = await proxy(makeRequest('/dashboard'))
       expect(res.headers.get('location')).toBeNull()
     })
 
-    it('passes through /setup', async () => {
+    it('passes through /setup for an active employee', async () => {
       const res = await proxy(makeRequest('/setup'))
       expect(res.headers.get('location')).toBeNull()
+    })
+
+    it('redirects to /login when employee is_active is false', async () => {
+      fromMock.mockReturnValue(makeQueryBuilder({ is_active: false }))
+      const res = await proxy(makeRequest('/dashboard'))
+      expect(res.headers.get('location')).toContain('/login')
+    })
+
+    it('passes through when no employee record exists for the user', async () => {
+      fromMock.mockReturnValue(makeQueryBuilder(null))
+      const res = await proxy(makeRequest('/dashboard'))
+      expect(res.headers.get('location')).toBeNull()
+    })
+
+    it('queries employee table by auth_user_id', async () => {
+      await proxy(makeRequest('/dashboard'))
+      expect(fromMock).toHaveBeenCalledWith('employee')
     })
   })
 

@@ -31,8 +31,20 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/setup')
 
-  if (isProtected && !user) {
-    return NextResponse.redirect(new URL('/login', request.nextUrl))
+  if (isProtected) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.nextUrl))
+    }
+
+    const { data: employee } = await supabase
+      .from('employee')
+      .select('is_active')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (employee?.is_active === false) {
+      return NextResponse.redirect(new URL('/login', request.nextUrl))
+    }
   }
 
   return response

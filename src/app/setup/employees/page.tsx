@@ -9,6 +9,7 @@ interface Employee {
   contact: string
   can_volunteer: boolean
   can_receive_volunteers: boolean
+  is_active: boolean
 }
 
 const emptyForm = (): Employee => ({
@@ -16,6 +17,7 @@ const emptyForm = (): Employee => ({
   contact: '',
   can_volunteer: true,
   can_receive_volunteers: true,
+  is_active: true,
 })
 
 function EmployeesForm() {
@@ -71,6 +73,12 @@ function EmployeesForm() {
           <input type="checkbox" name="can_receive_volunteers" checked={form.can_receive_volunteers}
             onChange={handleChange} />
           Can receive volunteers
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="is_active" checked={form.is_active}
+            onChange={handleChange} />
+          Active
         </label>
 
         <button type="submit" disabled={saving}
