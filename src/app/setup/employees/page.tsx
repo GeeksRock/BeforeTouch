@@ -2,9 +2,9 @@
 
 import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { saveEmployee } from './actions'
+import { saveEmployee, inviteEmployee } from './actions'
 
-interface Employee {
+interface EmployeeForm {
   name: string
   contact: string
   can_volunteer: boolean
@@ -12,7 +12,16 @@ interface Employee {
   is_active: boolean
 }
 
-const emptyForm = (): Employee => ({
+type InviteStatus = 'pending' | 'invited' | { error: string }
+
+interface AddedEmployee {
+  id: string
+  name: string
+  contact: string
+  inviteStatus: InviteStatus
+}
+
+const emptyForm = (): EmployeeForm => ({
   name: '',
   contact: '',
   can_volunteer: true,
@@ -25,9 +34,10 @@ function EmployeesForm() {
   const router = useRouter()
   const companyId = searchParams.get('company_id') ?? ''
 
-  const [form, setForm] = useState<Employee>(emptyForm())
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [form, setForm] = useState<EmployeeForm>(emptyForm())
+  const [employees, setEmployees] = useState<AddedEmployee[]>([])
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value, type, checked } = e.target
@@ -37,12 +47,39 @@ function EmployeesForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setSaveError(null)
+
+    const snapshot = { ...form }
+    let newId: string
+
     try {
-      await saveEmployee({ ...form, company_id: companyId })
-      setEmployees(prev => [...prev, form])
-      setForm(emptyForm())
-    } finally {
+      const result = await saveEmployee({ ...snapshot, company_id: companyId })
+      newId = result.id
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save employee')
       setSaving(false)
+      return
+    }
+
+    // Employee persisted — update UI immediately and reset the form
+    setEmployees(prev => [
+      ...prev,
+      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: 'pending' },
+    ])
+    setForm(emptyForm())
+    setSaving(false)
+
+    // Send the invite in the background; update the list item when it settles
+    try {
+      await inviteEmployee(newId, snapshot.contact)
+      setEmployees(prev =>
+        prev.map(emp => emp.id === newId ? { ...emp, inviteStatus: 'invited' } : emp),
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Invite failed'
+      setEmployees(prev =>
+        prev.map(emp => emp.id === newId ? { ...emp, inviteStatus: { error: msg } } : emp),
+      )
     }
   }
 
@@ -81,6 +118,8 @@ function EmployeesForm() {
           Active
         </label>
 
+        {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+
         <button type="submit" disabled={saving}
           className="bg-black text-white p-2 rounded mt-2">
           {saving ? 'Adding…' : 'Add employee'}
@@ -91,9 +130,22 @@ function EmployeesForm() {
         <section className="mb-8">
           <h2 className="font-semibold mb-2">Added so far</h2>
           <ul className="flex flex-col gap-1">
-            {employees.map((emp, i) => (
-              <li key={i} className="border rounded p-2 text-sm">
-                <span className="font-medium">{emp.name}</span> — {emp.contact}
+            {employees.map(emp => (
+              <li key={emp.id} className="border rounded p-2 text-sm flex items-center justify-between gap-2">
+                <span>
+                  <span className="font-medium">{emp.name}</span> — {emp.contact}
+                </span>
+                <span className="shrink-0">
+                  {emp.inviteStatus === 'pending' && (
+                    <span className="text-gray-400">Inviting…</span>
+                  )}
+                  {emp.inviteStatus === 'invited' && (
+                    <span className="text-green-700">Invited</span>
+                  )}
+                  {typeof emp.inviteStatus === 'object' && (
+                    <span className="text-red-600">{emp.inviteStatus.error}</span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

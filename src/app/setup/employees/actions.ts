@@ -12,9 +12,14 @@ interface EmployeeForm {
   is_active: boolean
 }
 
-export async function saveEmployee(data: EmployeeForm) {
-  const { error } = await supabase.from('employee').insert([data])
+export async function saveEmployee(data: EmployeeForm): Promise<{ id: string }> {
+  const { data: result, error } = await supabase
+    .from('employee')
+    .insert([data])
+    .select('id')
+    .single()
   if (error) throw new Error(error.message)
+  return { id: result.id }
 }
 
 export async function inviteEmployee(employeeId: string, email: string) {

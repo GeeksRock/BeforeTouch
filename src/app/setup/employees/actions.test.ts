@@ -16,9 +16,12 @@ const { saveEmployee, inviteEmployee } = await import('./actions')
 
 describe('saveEmployee', () => {
   const insertMock = vi.fn()
+  const singleMock = vi.fn()
 
   beforeEach(() => {
     vi.resetAllMocks()
+    const selectMock = vi.fn().mockReturnValue({ single: singleMock })
+    insertMock.mockReturnValue({ select: selectMock })
     vi.mocked(supabase.from).mockReturnValue({ insert: insertMock } as never)
   })
 
@@ -32,7 +35,7 @@ describe('saveEmployee', () => {
   }
 
   it('calls supabase insert with all fields including is_active', async () => {
-    insertMock.mockResolvedValue({ error: null })
+    singleMock.mockResolvedValue({ data: { id: 'new-id' }, error: null })
 
     await saveEmployee(validData)
 
@@ -41,15 +44,23 @@ describe('saveEmployee', () => {
   })
 
   it('saves is_active: false when specified', async () => {
-    insertMock.mockResolvedValue({ error: null })
+    singleMock.mockResolvedValue({ data: { id: 'new-id' }, error: null })
 
     await saveEmployee({ ...validData, is_active: false })
 
     expect(insertMock).toHaveBeenCalledWith([{ ...validData, is_active: false }])
   })
 
+  it('returns the id of the newly created employee', async () => {
+    singleMock.mockResolvedValue({ data: { id: 'new-emp-id' }, error: null })
+
+    const result = await saveEmployee(validData)
+
+    expect(result).toEqual({ id: 'new-emp-id' })
+  })
+
   it('throws when supabase returns an error', async () => {
-    insertMock.mockResolvedValue({ error: { message: 'insert failed' } })
+    singleMock.mockResolvedValue({ data: null, error: { message: 'insert failed' } })
 
     await expect(saveEmployee(validData)).rejects.toThrow('insert failed')
   })
