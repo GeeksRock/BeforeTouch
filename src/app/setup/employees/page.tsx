@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { saveEmployee } from './actions'
 
@@ -18,7 +18,7 @@ const emptyForm = (): Employee => ({
   can_receive_volunteers: true,
 })
 
-export default function EmployeesPage() {
+function EmployeesForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const companyId = searchParams.get('company_id') ?? ''
@@ -99,5 +99,13 @@ export default function EmployeesPage() {
         Continue
       </button>
     </main>
+  )
+}
+
+export default function EmployeesPage() {
+  return (
+    <Suspense>
+      <EmployeesForm />
+    </Suspense>
   )
 }
