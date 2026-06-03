@@ -97,6 +97,7 @@ function RotationForm() {
         supabase.from('employee').select('id, name').eq('company_id', companyId),
         supabase.from('company').select('has_backup').eq('id', companyId).single(),
       ])
+      console.log(empResult.data, empResult.error)
       if (empResult.data) setEmployees(empResult.data)
       if (compResult.data) setHasBackup(compResult.data.has_backup)
       setLoading(false)
