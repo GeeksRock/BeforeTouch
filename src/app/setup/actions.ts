@@ -15,7 +15,7 @@ interface CompanyForm {
 }
 
 export async function saveCompany(data: CompanyForm) {
-  const { error } = await supabase.from('company').insert([data])
+  const { data: company, error } = await supabase.from('company').insert([data]).select('id').single()
   if (error) throw new Error(error.message)
-  redirect('/setup/employees')
+  redirect(`/setup/employees?company_id=${company.id}`)
 }
