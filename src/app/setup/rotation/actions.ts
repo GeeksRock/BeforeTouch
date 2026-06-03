@@ -19,16 +19,21 @@ interface RotationForm {
 
 export async function saveRotation(data: RotationForm) {
   const records = [
-    { company_id: data.company_id, role: 'current', ...data.current },
-    { company_id: data.company_id, role: 'next', ...data.next },
+    {
+      company_id: data.company_id,
+      on_call_employee_id: data.current.employee_id,
+      backup_employee_id: data.backup_current?.employee_id ?? null,
+      start_datetime: data.current.start_datetime,
+      end_datetime: data.current.end_datetime,
+    },
+    {
+      company_id: data.company_id,
+      on_call_employee_id: data.next.employee_id,
+      backup_employee_id: data.backup_next?.employee_id ?? null,
+      start_datetime: data.next.start_datetime,
+      end_datetime: data.next.end_datetime,
+    },
   ]
-
-  if (data.backup_current) {
-    records.push({ company_id: data.company_id, role: 'backup_current', ...data.backup_current })
-  }
-  if (data.backup_next) {
-    records.push({ company_id: data.company_id, role: 'backup_next', ...data.backup_next })
-  }
 
   const { error } = await supabase.from('rotation').insert(records)
   if (error) throw new Error(error.message)
