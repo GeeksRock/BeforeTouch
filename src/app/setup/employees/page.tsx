@@ -153,7 +153,7 @@ function EmployeesForm() {
       )}
 
       <button
-        onClick={() => router.push('/setup/rotation')}
+        onClick={() => router.push(`/setup/rotation?company_id=${companyId}`)}
         className="border border-black p-2 rounded w-full"
       >
         Continue
