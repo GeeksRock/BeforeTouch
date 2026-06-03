@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 interface Rotation {
   id: string
-  employee_id: string
+  on_call_employee_id: string
   start_datetime: string
   end_datetime: string
 }
@@ -46,14 +46,14 @@ export async function fetchDashboard(): Promise<DashboardData> {
 
   const { data: rotation, error: rotError } = await supabase
     .from('rotation')
-    .select('id, employee_id, start_datetime, end_datetime')
+    .select('id, on_call_employee_id, start_datetime, end_datetime')
     .eq('company_id', employee.company_id)
     .lte('start_datetime', new Date().toISOString())
     .gte('end_datetime', new Date().toISOString())
     .single()
   if (rotError) throw new Error(rotError.message)
 
-  if (rotation.employee_id === employee.id) {
+  if (rotation.on_call_employee_id === employee.id) {
     const { data: offers, error: offersError } = await supabase
       .from('volunteer_offer')
       .select('id, employee_id, volunteer_type, status, employee(name)')
@@ -74,7 +74,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
   }
 
   const [onCallEmpResult, compResult] = await Promise.all([
-    supabase.from('employee').select('name').eq('id', rotation.employee_id).single(),
+    supabase.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
     supabase.from('company').select('allowed_volunteer_types').eq('id', employee.company_id).single(),
   ])
   if (onCallEmpResult.error) throw new Error(onCallEmpResult.error.message)
