@@ -40,7 +40,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
   const { data: employee, error: empError } = await supabase
     .from('employee')
     .select('id, name, company_id')
-    .eq('id', userId)
+    .eq('auth_user_id', userId)
     .single()
   if (empError) throw new Error(empError.message)
 
@@ -52,7 +52,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
     .single()
   if (rotError) throw new Error(rotError.message)
 
-  if (rotation.employee_id === userId) {
+  if (rotation.employee_id === employee.id) {
     const { data: offers, error: offersError } = await supabase
       .from('volunteer_offer')
       .select('id, employee_id, volunteer_type, status, employee(name)')
