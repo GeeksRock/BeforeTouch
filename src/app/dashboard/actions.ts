@@ -48,7 +48,8 @@ export async function fetchDashboard(): Promise<DashboardData> {
     .from('rotation')
     .select('id, employee_id, start_datetime, end_datetime')
     .eq('company_id', employee.company_id)
-    .eq('role', 'current')
+    .lte('start_datetime', new Date().toISOString())
+    .gte('end_datetime', new Date().toISOString())
     .single()
   if (rotError) throw new Error(rotError.message)
 
