@@ -40,6 +40,7 @@ export async function proxy(request: NextRequest) {
       .from('employee')
       .select('is_active')
       .eq('auth_user_id', user.id)
+      .limit(1)
       .maybeSingle()
 
     if (employee?.is_active === false) {

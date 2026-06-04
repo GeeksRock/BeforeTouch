@@ -47,8 +47,10 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
     .from('employee')
     .select('id, name, company_id')
     .eq('auth_user_id', userId)
-    .single()
+    .limit(1)
+    .maybeSingle()
   if (empError) return { data: null, error: empError.message }
+  if (!employee) return { data: null, error: 'Employee record not found' }
 
   const { data: rotation, error: rotError } = await client
     .from('rotation')
