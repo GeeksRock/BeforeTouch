@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { fetchDashboard, submitVolunteerOffer, type DashboardData } from './actions'
 
 function OnCallView({ data }: { data: Extract<DashboardData, { type: 'on-call' }> }) {
@@ -110,6 +111,7 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -117,8 +119,13 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboard()
       .then(({ data, error }) => {
-        if (error) setError(error)
-        else setData(data)
+        if (error === 'Employee record not found') {
+          router.replace('/dashboard/admin')
+        } else if (error) {
+          setError(error)
+        } else {
+          setData(data)
+        }
       })
       .catch(() => setError('Failed to load'))
       .finally(() => setLoading(false))
