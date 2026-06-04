@@ -67,7 +67,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
   if (rotation.on_call_employee_id === employee.id) {
     const { data: offers, error: offersError } = await client
       .from('volunteer_offer')
-      .select('id, employee_id, volunteer_type, status, employee(name)')
+      .select('id, volunteer_employee_id, offer_type, status, employee(name)')
       .eq('rotation_id', rotation.id)
     if (offersError) return { data: null, error: offersError.message }
 
@@ -77,9 +77,9 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
         rotation,
         volunteers: (offers ?? []).map((o: any) => ({
           id: o.id,
-          employee_id: o.employee_id,
+          employee_id: o.volunteer_employee_id,
           employee_name: o.employee?.name ?? '',
-          volunteer_type: o.volunteer_type,
+          volunteer_type: o.offer_type,
           status: o.status,
         })),
       },
@@ -115,8 +115,8 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
   const client = await createSupabaseServerClient()
   const { error } = await client.from('volunteer_offer').insert([{
     rotation_id: data.rotation_id,
-    employee_id: userId,
-    volunteer_type: data.volunteer_type,
+    volunteer_employee_id: userId,
+    offer_type: data.volunteer_type,
     status: 'pending',
   }])
   if (error) return { error: error.message }
