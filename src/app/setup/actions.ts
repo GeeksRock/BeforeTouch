@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 interface CompanyForm {
   name: string
@@ -15,7 +15,15 @@ interface CompanyForm {
 }
 
 export async function saveCompany(data: CompanyForm) {
-  const { data: company, error } = await supabase.from('company').insert([data]).select('id').single()
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: company, error } = await client
+    .from('company')
+    .insert([{ ...data, owner_id: user.id }])
+    .select('id')
+    .single()
   if (error) throw new Error(error.message)
   redirect(`/setup/employees?company_id=${company.id}`)
 }
