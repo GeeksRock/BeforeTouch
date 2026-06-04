@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
       .from('employee')
       .select('is_active')
       .eq('auth_user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (employee?.is_active === false) {
       return NextResponse.redirect(new URL('/login', request.nextUrl))

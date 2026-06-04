@@ -1,6 +1,5 @@
 'use server'
 
-import { supabase } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 interface Rotation {
@@ -34,67 +33,90 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id
 }
 
-export async function fetchDashboard(): Promise<DashboardData> {
-  const userId = await getAuthenticatedUserId()
+export async function fetchDashboard(): Promise<{ data: DashboardData | null; error: string | null }> {
+  let userId: string
+  try {
+    userId = await getAuthenticatedUserId()
+  } catch (e: any) {
+    return { data: null, error: e.message ?? 'Not authenticated' }
+  }
 
-  const { data: employee, error: empError } = await supabase
+  const client = await createSupabaseServerClient()
+
+  const { data: employee, error: empError } = await client
     .from('employee')
     .select('id, name, company_id')
     .eq('auth_user_id', userId)
     .single()
-  if (empError) throw new Error(empError.message)
+  if (empError) return { data: null, error: empError.message }
 
-  const { data: rotation, error: rotError } = await supabase
+  const { data: rotation, error: rotError } = await client
     .from('rotation')
     .select('id, on_call_employee_id, start_datetime, end_datetime')
     .eq('company_id', employee.company_id)
     .lte('start_datetime', new Date().toISOString())
     .gte('end_datetime', new Date().toISOString())
-    .single()
-  if (rotError) throw new Error(rotError.message)
+    .order('start_datetime', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (rotError) return { data: null, error: rotError.message }
+  if (!rotation) return { data: null, error: 'No active rotation found' }
 
   if (rotation.on_call_employee_id === employee.id) {
-    const { data: offers, error: offersError } = await supabase
+    const { data: offers, error: offersError } = await client
       .from('volunteer_offer')
       .select('id, employee_id, volunteer_type, status, employee(name)')
       .eq('rotation_id', rotation.id)
-    if (offersError) throw new Error(offersError.message)
+    if (offersError) return { data: null, error: offersError.message }
 
     return {
-      type: 'on-call',
-      rotation,
-      volunteers: (offers ?? []).map((o: { id: string; employee_id: string; volunteer_type: string; status: string; employee: { name: string }[] }) => ({
-        id: o.id,
-        employee_id: o.employee_id,
-        employee_name: o.employee[0]?.name ?? '',
-        volunteer_type: o.volunteer_type,
-        status: o.status,
-      })),
+      data: {
+        type: 'on-call',
+        rotation,
+        volunteers: (offers ?? []).map((o: any) => ({
+          id: o.id,
+          employee_id: o.employee_id,
+          employee_name: o.employee?.name ?? '',
+          volunteer_type: o.volunteer_type,
+          status: o.status,
+        })),
+      },
+      error: null,
     }
   }
 
   const [onCallEmpResult, compResult] = await Promise.all([
-    supabase.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
-    supabase.from('company').select('allowed_volunteer_types').eq('id', employee.company_id).single(),
+    client.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
+    client.from('company').select('allowed_volunteer_types').eq('id', employee.company_id).single(),
   ])
-  if (onCallEmpResult.error) throw new Error(onCallEmpResult.error.message)
-  if (compResult.error) throw new Error(compResult.error.message)
+  if (onCallEmpResult.error) return { data: null, error: onCallEmpResult.error.message }
+  if (compResult.error) return { data: null, error: compResult.error.message }
 
   return {
-    type: 'not-on-call',
-    onCallEmployeeName: onCallEmpResult.data.name,
-    rotation,
-    allowedVolunteerTypes: compResult.data.allowed_volunteer_types,
+    data: {
+      type: 'not-on-call',
+      onCallEmployeeName: onCallEmpResult.data.name,
+      rotation,
+      allowedVolunteerTypes: compResult.data.allowed_volunteer_types,
+    },
+    error: null,
   }
 }
 
-export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<void> {
-  const userId = await getAuthenticatedUserId()
-  const { error } = await supabase.from('volunteer_offer').insert([{
+export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{ error: string | null }> {
+  let userId: string
+  try {
+    userId = await getAuthenticatedUserId()
+  } catch (e: any) {
+    return { error: e.message ?? 'Not authenticated' }
+  }
+  const client = await createSupabaseServerClient()
+  const { error } = await client.from('volunteer_offer').insert([{
     rotation_id: data.rotation_id,
     employee_id: userId,
     volunteer_type: data.volunteer_type,
     status: 'pending',
   }])
-  if (error) throw new Error(error.message)
+  if (error) return { error: error.message }
+  return { error: null }
 }
