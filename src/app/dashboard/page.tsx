@@ -50,10 +50,11 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
     setSubmitting(true)
     setError(null)
     try {
-      await submitVolunteerOffer({ rotation_id: rotation.id, volunteer_type: selectedType })
-      setSubmitted(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const { error: submitError } = await submitVolunteerOffer({ rotation_id: rotation.id, volunteer_type: selectedType })
+      if (submitError) setError(submitError)
+      else setSubmitted(true)
+    } catch {
+      setError('Something went wrong')
     } finally {
       setSubmitting(false)
     }
@@ -115,8 +116,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboard()
-      .then(setData)
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .then(({ data, error }) => {
+        if (error) setError(error)
+        else setData(data)
+      })
+      .catch(() => setError('Failed to load'))
       .finally(() => setLoading(false))
   }, [])
 
