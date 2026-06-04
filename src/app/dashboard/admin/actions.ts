@@ -17,6 +17,7 @@ export interface AdminDashboardData {
 export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData | null; error: string | null }> {
   const client = await createSupabaseServerClient()
   const { data: { user } } = await client.auth.getUser()
+  console.log('[fetchAdminDashboard] user.id:', user?.id)
   if (!user) return { data: null, error: 'Not authenticated' }
 
   const { data: company, error: compError } = await client
