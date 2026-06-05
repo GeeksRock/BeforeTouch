@@ -18,12 +18,18 @@ interface VolunteerOffer {
 }
 
 export type DashboardData =
-  | { type: 'on-call'; rotation: Rotation; volunteers: VolunteerOffer[] }
-  | { type: 'not-on-call'; onCallEmployeeName: string; rotation: Rotation; allowedVolunteerTypes: string[] }
+  | { type: 'on-call'; rotation: Rotation; volunteers: VolunteerOffer[]; approval_approver: string }
+  | { type: 'not-on-call'; onCallEmployeeName: string; rotation: Rotation; allowedVolunteerTypes: string[]; approval_approver: string }
+  | { type: 'admin'; rotation: Rotation; volunteers: VolunteerOffer[]; approval_approver: string }
 
 export interface VolunteerOfferInput {
   rotation_id: string
   volunteer_type: string
+}
+
+export interface ApproveOfferInput {
+  offer_id: string
+  decision: 'accepted' | 'declined'
 }
 
 async function getAuthenticatedUserId(): Promise<string> {
@@ -31,6 +37,16 @@ async function getAuthenticatedUserId(): Promise<string> {
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   return user.id
+}
+
+function mapOffers(offers: any[]): VolunteerOffer[] {
+  return offers.map((o: any) => ({
+    id: o.id,
+    employee_id: o.volunteer_employee_id,
+    employee_name: o.employee?.name ?? '',
+    volunteer_type: o.offer_type,
+    status: o.status,
+  }))
 }
 
 export async function fetchDashboard(): Promise<{ data: DashboardData | null; error: string | null }> {
@@ -45,7 +61,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
 
   const { data: employee, error: empError } = await client
     .from('employee')
-    .select('id, name, company_id')
+    .select('id, name, company_id, is_admin')
     .eq('auth_user_id', userId)
     .limit(1)
     .maybeSingle()
@@ -64,24 +80,45 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
   if (rotError) return { data: null, error: rotError.message }
   if (!rotation) return { data: null, error: 'No active rotation found' }
 
+  if (employee.is_admin) {
+    const [offersResult, compResult] = await Promise.all([
+      client
+        .from('volunteer_offer')
+        .select('id, volunteer_employee_id, offer_type, status, employee(name)')
+        .eq('rotation_id', rotation.id),
+      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
+    ])
+    if (offersResult.error) return { data: null, error: offersResult.error.message }
+    if (compResult.error) return { data: null, error: compResult.error.message }
+
+    return {
+      data: {
+        type: 'admin',
+        rotation,
+        volunteers: mapOffers(offersResult.data ?? []),
+        approval_approver: compResult.data.approval_approver,
+      },
+      error: null,
+    }
+  }
+
   if (rotation.on_call_employee_id === employee.id) {
-    const { data: offers, error: offersError } = await client
-      .from('volunteer_offer')
-      .select('id, volunteer_employee_id, offer_type, status, employee(name)')
-      .eq('rotation_id', rotation.id)
-    if (offersError) return { data: null, error: offersError.message }
+    const [offersResult, compResult] = await Promise.all([
+      client
+        .from('volunteer_offer')
+        .select('id, volunteer_employee_id, offer_type, status, employee(name)')
+        .eq('rotation_id', rotation.id),
+      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
+    ])
+    if (offersResult.error) return { data: null, error: offersResult.error.message }
+    if (compResult.error) return { data: null, error: compResult.error.message }
 
     return {
       data: {
         type: 'on-call',
         rotation,
-        volunteers: (offers ?? []).map((o: any) => ({
-          id: o.id,
-          employee_id: o.volunteer_employee_id,
-          employee_name: o.employee?.name ?? '',
-          volunteer_type: o.offer_type,
-          status: o.status,
-        })),
+        volunteers: mapOffers(offersResult.data ?? []),
+        approval_approver: compResult.data.approval_approver,
       },
       error: null,
     }
@@ -89,7 +126,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
 
   const [onCallEmpResult, compResult] = await Promise.all([
     client.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
-    client.from('company').select('allowed_volunteer_types').eq('id', employee.company_id).single(),
+    client.from('company').select('allowed_volunteer_types, approval_approver').eq('id', employee.company_id).single(),
   ])
   if (onCallEmpResult.error) return { data: null, error: onCallEmpResult.error.message }
   if (compResult.error) return { data: null, error: compResult.error.message }
@@ -100,6 +137,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
       onCallEmployeeName: onCallEmpResult.data.name,
       rotation,
       allowedVolunteerTypes: compResult.data.allowed_volunteer_types,
+      approval_approver: compResult.data.approval_approver,
     },
     error: null,
   }
@@ -120,5 +158,40 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
     status: 'pending',
   }])
   if (error) return { error: error.message }
+  return { error: null }
+}
+
+export async function approveVolunteerOffer(data: ApproveOfferInput): Promise<{ error: string | null }> {
+  let userId: string
+  try {
+    userId = await getAuthenticatedUserId()
+  } catch (e: any) {
+    return { error: e.message ?? 'Not authenticated' }
+  }
+  const client = await createSupabaseServerClient()
+
+  const { data: employee, error: empError } = await client
+    .from('employee')
+    .select('id')
+    .eq('auth_user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  if (empError) return { error: empError.message }
+  if (!employee) return { error: 'Employee record not found' }
+
+  const { error: approvalError } = await client.from('approval').insert([{
+    volunteer_offer_id: data.offer_id,
+    approver_employee_id: employee.id,
+    decision: data.decision,
+    decided_at: new Date().toISOString(),
+  }])
+  if (approvalError) return { error: approvalError.message }
+
+  const { error: updateError } = await client
+    .from('volunteer_offer')
+    .update({ status: data.decision })
+    .eq('id', data.offer_id)
+  if (updateError) return { error: updateError.message }
+
   return { error: null }
 }

@@ -20,6 +20,7 @@ const validData = {
   rotation_end_time: '17:00',
   has_backup: false,
   allowed_volunteer_types: ['full-time'],
+  approval_approver: 'on_call' as const,
 }
 
 function makeClient(insertResult: { data: unknown; error: unknown }, userId = 'user-1') {

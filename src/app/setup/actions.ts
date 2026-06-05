@@ -12,6 +12,7 @@ interface CompanyForm {
   rotation_end_time: string
   has_backup: boolean
   allowed_volunteer_types: string[]
+  approval_approver: 'on_call' | 'manager'
 }
 
 export async function saveCompany(data: CompanyForm) {

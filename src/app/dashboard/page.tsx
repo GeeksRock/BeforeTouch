@@ -2,10 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { fetchDashboard, submitVolunteerOffer, type DashboardData } from './actions'
+import { fetchDashboard, submitVolunteerOffer, approveVolunteerOffer, type DashboardData } from './actions'
 
-function OnCallView({ data }: { data: Extract<DashboardData, { type: 'on-call' }> }) {
-  const { rotation, volunteers } = data
+function OnCallView({
+  data,
+  onRefresh,
+}: {
+  data: Extract<DashboardData, { type: 'on-call' }>
+  onRefresh: () => void
+}) {
+  const { rotation, volunteers, approval_approver } = data
+  const [approving, setApproving] = useState<string | null>(null)
+
+  async function handleApprove(offerId: string, decision: 'accepted' | 'declined') {
+    setApproving(offerId)
+    const { error } = await approveVolunteerOffer({ offer_id: offerId, decision })
+    setApproving(null)
+    if (!error) onRefresh()
+  }
 
   return (
     <main className="max-w-lg mx-auto p-8">
@@ -24,12 +38,32 @@ function OnCallView({ data }: { data: Extract<DashboardData, { type: 'on-call' }
         ) : (
           <ul className="flex flex-col gap-2">
             {volunteers.map(v => (
-              <li key={v.id} className="border rounded p-3 text-sm">
-                <span className="font-medium">{v.employee_name}</span>
-                {' — '}
-                <span>{v.volunteer_type}</span>
-                {' '}
-                <span className="text-gray-500">({v.status})</span>
+              <li key={v.id} className="border rounded p-3 text-sm flex items-center justify-between">
+                <span>
+                  <span className="font-medium">{v.employee_name}</span>
+                  {' — '}
+                  <span>{v.volunteer_type}</span>
+                  {' '}
+                  <span className="text-gray-500">({v.status})</span>
+                </span>
+                {approval_approver === 'on_call' && v.status === 'pending' && (
+                  <span className="flex gap-2 ml-3">
+                    <button
+                      onClick={() => handleApprove(v.id, 'accepted')}
+                      disabled={approving === v.id}
+                      className="px-2 py-1 text-xs bg-green-600 text-white rounded disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleApprove(v.id, 'declined')}
+                      disabled={approving === v.id}
+                      className="px-2 py-1 text-xs bg-red-600 text-white rounded disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -110,13 +144,86 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
   )
 }
 
+function AdminView({
+  data,
+  onRefresh,
+}: {
+  data: Extract<DashboardData, { type: 'admin' }>
+  onRefresh: () => void
+}) {
+  const { rotation, volunteers, approval_approver } = data
+  const [approving, setApproving] = useState<string | null>(null)
+
+  async function handleApprove(offerId: string, decision: 'accepted' | 'declined') {
+    setApproving(offerId)
+    const { error } = await approveVolunteerOffer({ offer_id: offerId, decision })
+    setApproving(null)
+    if (!error) onRefresh()
+  }
+
+  return (
+    <main className="max-w-lg mx-auto p-8">
+      <h1 className="text-2xl font-bold mb-6">Admin view</h1>
+
+      <section className="border rounded p-4 mb-6">
+        <h2 className="font-semibold mb-2">Active rotation</h2>
+        <p className="text-sm">From: {new Date(rotation.start_datetime).toLocaleString()}</p>
+        <p className="text-sm">To: {new Date(rotation.end_datetime).toLocaleString()}</p>
+      </section>
+
+      <section>
+        <h2 className="font-semibold mb-2">Volunteer offers</h2>
+        {volunteers.length === 0 ? (
+          <p className="text-sm text-gray-500">No volunteer offers.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {volunteers.map(v => (
+              <li key={v.id} className="border rounded p-3 text-sm flex items-center justify-between">
+                <span>
+                  <span className="font-medium">{v.employee_name}</span>
+                  {' — '}
+                  <span>{v.volunteer_type}</span>
+                  {' '}
+                  <span className="text-gray-500">({v.status})</span>
+                </span>
+                {approval_approver === 'manager' && v.status === 'pending' && (
+                  <span className="flex gap-2 ml-3">
+                    <button
+                      onClick={() => handleApprove(v.id, 'accepted')}
+                      disabled={approving === v.id}
+                      className="px-2 py-1 text-xs bg-green-600 text-white rounded disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleApprove(v.id, 'declined')}
+                      disabled={approving === v.id}
+                      className="px-2 py-1 text-xs bg-red-600 text-white rounded disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
+  )
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const reload = () => setRefreshKey(k => k + 1)
 
   useEffect(() => {
+    setLoading(true)
     fetchDashboard()
       .then(({ data, error }) => {
         if (error === 'Employee record not found') {
@@ -129,12 +236,13 @@ export default function DashboardPage() {
       })
       .catch(() => setError('Failed to load'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [refreshKey])
 
   if (loading) return <main className="max-w-lg mx-auto p-8">Loading…</main>
   if (error) return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
   if (!data) return null
 
-  if (data.type === 'on-call') return <OnCallView data={data} />
+  if (data.type === 'on-call') return <OnCallView data={data} onRefresh={reload} />
+  if (data.type === 'admin') return <AdminView data={data} onRefresh={reload} />
   return <NotOnCallView data={data} />
 }

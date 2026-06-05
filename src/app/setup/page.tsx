@@ -13,6 +13,7 @@ export default function SetupPage() {
     rotation_end_time: '',
     has_backup: false,
     allowed_volunteer_types: [] as string[],
+    approval_approver: 'on_call' as 'on_call' | 'manager',
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -102,6 +103,22 @@ export default function SetupPage() {
             onChange={handleChange} />
           This rotation includes a backup on-call person
         </label>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="font-medium">Who approves volunteer offers?</legend>
+          {(['on_call', 'manager'] as const).map(value => (
+            <label key={value} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="approval_approver"
+                value={value}
+                checked={form.approval_approver === value}
+                onChange={handleChange}
+              />
+              {value === 'on_call' ? 'On-call employee' : 'Manager'}
+            </label>
+          ))}
+        </fieldset>
 
         <fieldset className="flex flex-col gap-2">
           <legend className="font-medium">Allowed volunteer types</legend>
