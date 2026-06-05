@@ -277,32 +277,54 @@ describe('submitVolunteerOffer', () => {
     vi.mocked(supabase.from).mockReturnValue({ insert: insertMock } as never)
   })
 
-  it('inserts a volunteer offer with the session user id and pending status', async () => {
+  it('inserts a volunteer offer with offer_type and no datetimes when not provided', async () => {
     insertMock.mockResolvedValue({ error: null })
 
-    await submitVolunteerOffer({ rotation_id: 'rot-1', volunteer_type: 'full_shift' })
+    await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
 
     expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('volunteer_offer')
     expect(insertMock).toHaveBeenCalledWith([
       {
         rotation_id: 'rot-1',
         volunteer_employee_id: userId,
-        offer_type: 'full_shift',
+        offer_type: 'full_rotation',
         status: 'pending',
+      },
+    ])
+  })
+
+  it('includes start_datetime and end_datetime in the insert when provided', async () => {
+    insertMock.mockResolvedValue({ error: null })
+
+    await submitVolunteerOffer({
+      rotation_id: 'rot-1',
+      offer_type: 'hour_blocks',
+      start_datetime: '2024-01-06T09:00',
+      end_datetime: '2024-01-06T17:00',
+    })
+
+    expect(insertMock).toHaveBeenCalledWith([
+      {
+        rotation_id: 'rot-1',
+        volunteer_employee_id: userId,
+        offer_type: 'hour_blocks',
+        status: 'pending',
+        start_datetime: '2024-01-06T09:00',
+        end_datetime: '2024-01-06T17:00',
       },
     ])
   })
 
   it('returns an error when not authenticated', async () => {
     mockAuthAs(null)
-    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', volunteer_type: 'full_shift' })
+    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
     expect(result.error).toBe('Not authenticated')
   })
 
   it('returns an error when the insert fails', async () => {
     insertMock.mockResolvedValue({ error: { message: 'insert failed' } })
 
-    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', volunteer_type: 'full_shift' })
+    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
     expect(result.error).toBe('insert failed')
   })
 })

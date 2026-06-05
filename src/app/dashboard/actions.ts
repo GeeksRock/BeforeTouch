@@ -24,7 +24,9 @@ export type DashboardData =
 
 export interface VolunteerOfferInput {
   rotation_id: string
-  volunteer_type: string
+  offer_type: string
+  start_datetime?: string
+  end_datetime?: string
 }
 
 export interface ApproveOfferInput {
@@ -151,12 +153,15 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
     return { error: e.message ?? 'Not authenticated' }
   }
   const client = await createSupabaseServerClient()
-  const { error } = await client.from('volunteer_offer').insert([{
+  const record: Record<string, unknown> = {
     rotation_id: data.rotation_id,
     volunteer_employee_id: userId,
-    offer_type: data.volunteer_type,
+    offer_type: data.offer_type,
     status: 'pending',
-  }])
+  }
+  if (data.start_datetime) record.start_datetime = data.start_datetime
+  if (data.end_datetime) record.end_datetime = data.end_datetime
+  const { error } = await client.from('volunteer_offer').insert([record])
   if (error) return { error: error.message }
   return { error: null }
 }

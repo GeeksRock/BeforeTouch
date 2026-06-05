@@ -4,6 +4,39 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchDashboard, submitVolunteerOffer, approveVolunteerOffer, type DashboardData } from './actions'
 
+function getDaysInWindow(startISO: string, endISO: string): Date[] {
+  const days: Date[] = []
+  const start = new Date(startISO)
+  const end = new Date(endISO)
+  const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  while (cur <= end) {
+    days.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return days
+}
+
+function dayKey(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${m}-${d}`
+}
+
+function dayLabel(date: Date): string {
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' })
+  const month = date.toLocaleDateString('en-US', { month: 'short' })
+  return `${weekday} ${month} ${date.getDate()}`
+}
+
+function toLocalISOString(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function toDatetimeLocal(iso: string): string {
+  return iso.slice(0, 16)
+}
+
 function OnCallView({
   data,
   onRefresh,
@@ -76,24 +109,68 @@ function OnCallView({
 function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-call' }> }) {
   const { onCallEmployeeName, rotation, allowedVolunteerTypes } = data
   const [selectedType, setSelectedType] = useState(allowedVolunteerTypes[0] ?? '')
+  const [selectedDays, setSelectedDays] = useState<string[]>([])
+  const [startDatetime, setStartDatetime] = useState('')
+  const [endDatetime, setEndDatetime] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleVolunteer(e: React.FormEvent) {
+  function toggleDay(key: string) {
+    setSelectedDays(prev =>
+      prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
+    )
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
     try {
-      const { error: submitError } = await submitVolunteerOffer({ rotation_id: rotation.id, volunteer_type: selectedType })
-      if (submitError) setError(submitError)
-      else setSubmitted(true)
+      if (selectedType === 'individual_days') {
+        const results = await Promise.all(
+          selectedDays.map(key => {
+            const [y, m, d] = key.split('-').map(Number)
+            const start = new Date(y, m - 1, d, 0, 0, 0)
+            const end = new Date(y, m - 1, d, 23, 59, 0)
+            return submitVolunteerOffer({
+              rotation_id: rotation.id,
+              offer_type: selectedType,
+              start_datetime: toLocalISOString(start),
+              end_datetime: toLocalISOString(end),
+            })
+          })
+        )
+        const firstError = results.find(r => r.error)?.error ?? null
+        if (firstError) { setError(firstError); return }
+      } else if (selectedType === 'hour_blocks') {
+        if (endDatetime <= startDatetime) {
+          setError('End time must be after start time')
+          return
+        }
+        const { error: submitError } = await submitVolunteerOffer({
+          rotation_id: rotation.id,
+          offer_type: selectedType,
+          start_datetime: startDatetime,
+          end_datetime: endDatetime,
+        })
+        if (submitError) { setError(submitError); return }
+      } else {
+        const { error: submitError } = await submitVolunteerOffer({
+          rotation_id: rotation.id,
+          offer_type: selectedType,
+        })
+        if (submitError) { setError(submitError); return }
+      }
+      setSubmitted(true)
     } catch {
       setError('Something went wrong')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const daysInWindow = getDaysInWindow(rotation.start_datetime, rotation.end_datetime)
 
   return (
     <main className="max-w-lg mx-auto p-8">
@@ -114,25 +191,73 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
               Your offer has been submitted.
             </p>
           ) : (
-            <form onSubmit={handleVolunteer} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm">
-                Coverage type
-                <select
-                  value={selectedType}
-                  onChange={e => setSelectedType(e.target.value)}
-                  className="border p-2 rounded"
-                  required
-                >
-                  {allowedVolunteerTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </label>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              {allowedVolunteerTypes.length > 1 && (
+                <label className="flex flex-col gap-1 text-sm">
+                  Coverage type
+                  <select
+                    value={selectedType}
+                    onChange={e => { setSelectedType(e.target.value); setSelectedDays([]) }}
+                    className="border p-2 rounded"
+                  >
+                    {allowedVolunteerTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {selectedType === 'individual_days' && (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="text-sm font-medium mb-1">Select days</legend>
+                  {daysInWindow.map(day => {
+                    const key = dayKey(day)
+                    return (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedDays.includes(key)}
+                          onChange={() => toggleDay(key)}
+                        />
+                        {dayLabel(day)}
+                      </label>
+                    )
+                  })}
+                </fieldset>
+              )}
+
+              {selectedType === 'hour_blocks' && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    Start
+                    <input
+                      type="datetime-local"
+                      value={startDatetime}
+                      min={toDatetimeLocal(rotation.start_datetime)}
+                      onChange={e => setStartDatetime(e.target.value)}
+                      className="border p-2 rounded"
+                      required
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    End
+                    <input
+                      type="datetime-local"
+                      value={endDatetime}
+                      max={toDatetimeLocal(rotation.end_datetime)}
+                      onChange={e => setEndDatetime(e.target.value)}
+                      className="border p-2 rounded"
+                      required
+                    />
+                  </label>
+                </div>
+              )}
+
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
-                disabled={submitting}
-                className="bg-black text-white p-2 rounded"
+                disabled={submitting || (selectedType === 'individual_days' && selectedDays.length === 0)}
+                className="bg-black text-white p-2 rounded disabled:opacity-50"
               >
                 {submitting ? 'Submitting…' : 'Offer to cover'}
               </button>
