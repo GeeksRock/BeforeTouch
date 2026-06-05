@@ -407,10 +407,13 @@ describe('approveVolunteerOffer', () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
     approvalInsertMock.mockResolvedValue({ error: null })
+    vi.mocked(sendEmail).mockResolvedValue(undefined)
     vi.mocked(supabase.from)
-      .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)   // employee lookup
-      .mockReturnValueOnce({ insert: approvalInsertMock } as never)       // approval insert
-      .mockReturnValueOnce(makeQueryBuilder(null) as never)               // volunteer_offer update
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)                                     // employee lookup
+      .mockReturnValueOnce({ insert: approvalInsertMock } as never)                                        // approval insert
+      .mockReturnValueOnce(makeQueryBuilder(null) as never)                                                 // volunteer_offer update
+      .mockReturnValueOnce(makeQueryBuilder({ volunteer_employee_id: 'emp-2' }) as never)                  // offer fetch (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ contact: 'volunteer@example.com', name: 'Bob' }) as never)   // volunteer employee (notification)
   })
 
   it('inserts into the approval table with correct fields', async () => {
@@ -469,5 +472,53 @@ describe('approveVolunteerOffer', () => {
       .mockReturnValueOnce(makeQueryBuilder(null, { message: 'update failed' }) as never)
     const result = await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
     expect(result.error).toBe('update failed')
+  })
+
+  describe('notification', () => {
+    it('sends email to the volunteer when the offer is accepted', async () => {
+      await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'volunteer@example.com',
+        subject: 'Your volunteer offer was accepted',
+        html: 'Your offer to cover a shift has been accepted. Log in to BeforeTouch for details.',
+      })
+    })
+
+    it('sends email to the volunteer when the offer is declined', async () => {
+      vi.resetAllMocks()
+      mockAuthAs(userId)
+      approvalInsertMock.mockResolvedValue({ error: null })
+      vi.mocked(sendEmail).mockResolvedValue(undefined)
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
+        .mockReturnValueOnce({ insert: approvalInsertMock } as never)
+        .mockReturnValueOnce(makeQueryBuilder(null) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ volunteer_employee_id: 'emp-2' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ contact: 'volunteer@example.com', name: 'Bob' }) as never)
+      await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'declined' })
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'volunteer@example.com',
+        subject: 'Your volunteer offer was declined',
+        html: 'Your offer to cover a shift has been declined. Log in to BeforeTouch for details.',
+      })
+    })
+
+    it('does not return an error when sendEmail throws', async () => {
+      vi.mocked(sendEmail).mockRejectedValue(new Error('email failed'))
+      const result = await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
+      expect(result.error).toBeNull()
+    })
+
+    it('does not send email when status update fails', async () => {
+      vi.resetAllMocks()
+      mockAuthAs(userId)
+      vi.mocked(sendEmail).mockResolvedValue(undefined)
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
+        .mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: null }) } as never)
+        .mockReturnValueOnce(makeQueryBuilder(null, { message: 'update failed' }) as never)
+      await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
+      expect(sendEmail).not.toHaveBeenCalled()
+    })
   })
 })

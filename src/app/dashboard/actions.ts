@@ -239,5 +239,27 @@ export async function approveVolunteerOffer(data: ApproveOfferInput): Promise<{ 
     .eq('id', data.offer_id)
   if (updateError) return { error: updateError.message }
 
+  try {
+    const { data: offer } = await client
+      .from('volunteer_offer')
+      .select('volunteer_employee_id')
+      .eq('id', data.offer_id)
+      .single()
+    const { data: volunteer } = await client
+      .from('employee')
+      .select('contact, name')
+      .eq('id', offer?.volunteer_employee_id)
+      .single()
+    if (volunteer?.contact) {
+      await sendEmail({
+        to: volunteer.contact,
+        subject: 'Your volunteer offer was ' + data.decision,
+        html: 'Your offer to cover a shift has been ' + data.decision + '. Log in to BeforeTouch for details.',
+      })
+    }
+  } catch (e) {
+    console.error(e)
+  }
+
   return { error: null }
 }
