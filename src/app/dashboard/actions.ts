@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { sendEmail } from '@/lib/email'
 
 interface Rotation {
   id: string
@@ -153,6 +154,16 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
     return { error: e.message ?? 'Not authenticated' }
   }
   const client = await createSupabaseServerClient()
+
+  const { data: employee, error: empError } = await client
+    .from('employee')
+    .select('id, name, company_id')
+    .eq('auth_user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  if (empError) return { error: empError.message }
+  if (!employee) return { error: 'Employee record not found' }
+
   const record: Record<string, unknown> = {
     rotation_id: data.rotation_id,
     volunteer_employee_id: userId,
@@ -163,6 +174,36 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
   if (data.end_datetime) record.end_datetime = data.end_datetime
   const { error } = await client.from('volunteer_offer').insert([record])
   if (error) return { error: error.message }
+
+  try {
+    const [compResult, rotResult] = await Promise.all([
+      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
+      client.from('rotation').select('on_call_employee_id').eq('id', data.rotation_id).single(),
+    ])
+    const approvalApprover = compResult.data?.approval_approver
+    const onCallEmployeeId = rotResult.data?.on_call_employee_id
+    let contactResult: { data: { email: string } | null } | undefined
+    if (approvalApprover === 'on_call') {
+      contactResult = await client.from('employee').select('email').eq('id', onCallEmployeeId).single()
+    } else if (approvalApprover === 'manager') {
+      contactResult = await client
+        .from('employee')
+        .select('email')
+        .eq('company_id', employee.company_id)
+        .eq('is_admin', true)
+        .single()
+    }
+    if (contactResult?.data?.email) {
+      await sendEmail({
+        to: contactResult.data.email,
+        subject: 'New volunteer offer for your review',
+        html: `${employee.name} has offered to cover ${data.offer_type}. Log in to BeforeTouch to review it.`,
+      })
+    }
+  } catch (e) {
+    console.error(e)
+  }
+
   return { error: null }
 }
 

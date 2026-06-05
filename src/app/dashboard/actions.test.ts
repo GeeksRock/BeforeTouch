@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { supabase } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { sendEmail } from '@/lib/email'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -10,6 +11,10 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
+}))
+
+vi.mock('@/lib/email', () => ({
+  sendEmail: vi.fn(),
 }))
 
 const { fetchDashboard, submitVolunteerOffer, approveVolunteerOffer } = await import('./actions')
@@ -274,7 +279,13 @@ describe('submitVolunteerOffer', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValue({ insert: insertMock } as never)
+    vi.mocked(sendEmail).mockResolvedValue(undefined)
+    vi.mocked(supabase.from)
+      .mockReturnValueOnce(makeQueryBuilder(employee) as never)  // employee lookup
+      .mockReturnValueOnce({ insert: insertMock } as never)       // volunteer_offer insert
+      .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // company (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2' }) as never)  // rotation (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ email: 'oncall@example.com' }) as never)   // on_call employee (notification)
   })
 
   it('inserts a volunteer offer with offer_type and no datetimes when not provided', async () => {
@@ -326,6 +337,66 @@ describe('submitVolunteerOffer', () => {
 
     const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
     expect(result.error).toBe('insert failed')
+  })
+
+  it('returns an error when employee record not found', async () => {
+    vi.resetAllMocks()
+    mockAuthAs(userId)
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+    expect(result.error).toBe('Employee record not found')
+  })
+
+  it('returns an error when employee lookup fails', async () => {
+    vi.resetAllMocks()
+    mockAuthAs(userId)
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null, { message: 'lookup failed' }) as never)
+    const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+    expect(result.error).toBe('lookup failed')
+  })
+
+  describe('notification', () => {
+    it('sends email to on-call employee when approval_approver is on_call', async () => {
+      insertMock.mockResolvedValue({ error: null })
+      await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'oncall@example.com',
+        subject: 'New volunteer offer for your review',
+        html: 'Alice has offered to cover full_rotation. Log in to BeforeTouch to review it.',
+      })
+    })
+
+    it('sends email to admin employee when approval_approver is manager', async () => {
+      vi.resetAllMocks()
+      mockAuthAs(userId)
+      insertMock.mockResolvedValue({ error: null })
+      vi.mocked(sendEmail).mockResolvedValue(undefined)
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(makeQueryBuilder(employee) as never)
+        .mockReturnValueOnce({ insert: insertMock } as never)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'manager' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ email: 'manager@example.com' }) as never)
+      await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'manager@example.com',
+        subject: 'New volunteer offer for your review',
+        html: 'Alice has offered to cover full_rotation. Log in to BeforeTouch to review it.',
+      })
+    })
+
+    it('does not return an error when sendEmail throws', async () => {
+      insertMock.mockResolvedValue({ error: null })
+      vi.mocked(sendEmail).mockRejectedValue(new Error('email failed'))
+      const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+      expect(result.error).toBeNull()
+    })
+
+    it('does not send email when insert fails', async () => {
+      insertMock.mockResolvedValue({ error: { message: 'insert failed' } })
+      await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+      expect(sendEmail).not.toHaveBeenCalled()
+    })
   })
 })
 
