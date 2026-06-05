@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/setup') || pathname.startsWith('/settings')
+  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/setup') || pathname.startsWith('/settings') || pathname.startsWith('/profile')
 
   if (isProtected) {
     if (!user) {

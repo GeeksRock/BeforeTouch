@@ -67,6 +67,11 @@ describe('proxy', () => {
       const res = await proxy(makeRequest('/settings'))
       expect(res.headers.get('location')).toContain('/login')
     })
+
+    it('redirects /profile to /login', async () => {
+      const res = await proxy(makeRequest('/profile'))
+      expect(res.headers.get('location')).toContain('/login')
+    })
   })
 
   describe('authenticated requests to protected routes', () => {
@@ -87,6 +92,11 @@ describe('proxy', () => {
 
     it('passes through /settings for an active employee', async () => {
       const res = await proxy(makeRequest('/settings'))
+      expect(res.headers.get('location')).toBeNull()
+    })
+
+    it('passes through /profile for an active employee', async () => {
+      const res = await proxy(makeRequest('/profile'))
       expect(res.headers.get('location')).toBeNull()
     })
 
