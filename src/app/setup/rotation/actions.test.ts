@@ -51,22 +51,20 @@ describe('saveRotation', () => {
 
     expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('rotation')
     expect(insertMock).toHaveBeenCalledWith([
-      { company_id: companyId, role: 'current', ...current },
-      { company_id: companyId, role: 'next', ...next },
+      { company_id: companyId, on_call_employee_id: current.employee_id, backup_employee_id: null, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
+      { company_id: companyId, on_call_employee_id: next.employee_id, backup_employee_id: null, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
     ])
   })
 
-  it('inserts four records when backup fields are provided', async () => {
+  it('inserts two records when backup fields are provided', async () => {
     insertMock.mockResolvedValue({ error: null })
 
     await saveRotation({ company_id: companyId, current, next, backup_current, backup_next })
 
     expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('rotation')
     expect(insertMock).toHaveBeenCalledWith([
-      { company_id: companyId, role: 'current', ...current },
-      { company_id: companyId, role: 'next', ...next },
-      { company_id: companyId, role: 'backup_current', ...backup_current },
-      { company_id: companyId, role: 'backup_next', ...backup_next },
+      { company_id: companyId, on_call_employee_id: current.employee_id, backup_employee_id: backup_current.employee_id, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
+      { company_id: companyId, on_call_employee_id: next.employee_id, backup_employee_id: backup_next.employee_id, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
     ])
   })
 

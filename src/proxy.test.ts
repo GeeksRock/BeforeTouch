@@ -16,11 +16,13 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
   const builder: Record<string, unknown> = {
     single: vi.fn().mockResolvedValue(result),
+    maybeSingle: vi.fn().mockResolvedValue(result),
     then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
       Promise.resolve(result).then(resolve, reject),
   }
   builder.eq = vi.fn().mockReturnValue(builder)
   builder.select = vi.fn().mockReturnValue(builder)
+  builder.limit = vi.fn().mockReturnValue(builder)
   return builder
 }
 

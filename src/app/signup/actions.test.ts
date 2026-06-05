@@ -40,12 +40,12 @@ describe('signup', () => {
     })
   })
 
-  it('redirects to /dashboard on success', async () => {
+  it('redirects to /setup on success', async () => {
     signUpMock.mockResolvedValue({ error: null })
 
     await signup(makeFormData('new@example.com', 'secret123'))
 
-    expect(vi.mocked(redirect)).toHaveBeenCalledWith('/dashboard')
+    expect(vi.mocked(redirect)).toHaveBeenCalledWith('/setup')
   })
 
   it('returns an error message without redirecting on failure', async () => {
