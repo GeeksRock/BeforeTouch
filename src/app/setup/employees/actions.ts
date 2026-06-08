@@ -1,6 +1,5 @@
 'use server'
 
-import { supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 interface EmployeeForm {
@@ -13,7 +12,7 @@ interface EmployeeForm {
 }
 
 export async function saveEmployee(data: EmployeeForm): Promise<{ id: string }> {
-  const { data: result, error } = await supabase
+  const { data: result, error } = await supabaseAdmin
     .from('employee')
     .insert([data])
     .select('id')
@@ -28,7 +27,7 @@ export async function inviteEmployee(employeeId: string, email: string) {
 
   const authUserId = data.user.id
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from('employee')
     .update({ auth_user_id: authUserId })
     .eq('id', employeeId)
