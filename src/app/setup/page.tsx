@@ -49,100 +49,122 @@ export default function SetupPage() {
   return (
     <main className="max-w-lg mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Set up your company</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
 
-        <label className="flex flex-col gap-1">
-          Company name
-          <input name="name" value={form.name} onChange={handleChange}
-            className="border p-2 rounded" required />
-        </label>
+        <div>
+          <label className="flex flex-col gap-1">
+            Company name
+            <input name="name" value={form.name} onChange={handleChange}
+              className="border p-2 rounded" required />
+          </label>
+        </div>
 
-        <label className="flex flex-col gap-1">
-          Rotation length
-          <select name="rotation_length" value={form.rotation_length} onChange={handleChange}
-            className="border p-2 rounded" required>
-            <option value="">Select...</option>
-            <option value="1_week">1 week</option>
-            <option value="2_weeks">2 weeks</option>
-            <option value="monthly">Monthly</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
+        <div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="has_backup" checked={form.has_backup}
+              onChange={handleChange} />
+            This rotation includes a backup on-call person
+          </label>
+        </div>
 
-        <label className="flex flex-col gap-1">
-          Rotation starts — day
-          <select name="rotation_start_day" value={form.rotation_start_day} onChange={handleChange}
-            className="border p-2 rounded" required>
-            <option value="">Select...</option>
-            {days.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
+        <div>
+          <label className="flex flex-col gap-1">
+            Rotation length
+            <select name="rotation_length" value={form.rotation_length} onChange={handleChange}
+              className="border p-2 rounded" required>
+              <option value="">Select...</option>
+              <option value="1_week">1 week</option>
+              <option value="2_weeks">2 weeks</option>
+              <option value="monthly">Monthly</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+        </div>
 
-        <label className="flex flex-col gap-1">
-          Rotation starts — time
-          <input type="time" name="rotation_start_time" value={form.rotation_start_time}
-            onChange={handleChange} className="border p-2 rounded" required />
-        </label>
+        <div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="is_active" checked={form.is_active}
+              onChange={handleChange} />
+            Company is active
+          </label>
+        </div>
 
-        <label className="flex flex-col gap-1">
-          Rotation ends — day
-          <select name="rotation_end_day" value={form.rotation_end_day} onChange={handleChange}
-            className="border p-2 rounded" required>
-            <option value="">Select...</option>
-            {days.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
+        <div>
+          <label className="flex flex-col gap-1">
+            Rotation starts — day
+            <select name="rotation_start_day" value={form.rotation_start_day} onChange={handleChange}
+              className="border p-2 rounded" required>
+              <option value="">Select...</option>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+        </div>
 
-        <label className="flex flex-col gap-1">
-          Rotation ends — time
-          <input type="time" name="rotation_end_time" value={form.rotation_end_time}
-            onChange={handleChange} className="border p-2 rounded" required />
-        </label>
+        <div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="font-medium">Who approves volunteer offers?</legend>
+            {(['on_call', 'manager'] as const).map(value => (
+              <label key={value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="approval_approver"
+                  value={value}
+                  checked={form.approval_approver === value}
+                  onChange={handleChange}
+                />
+                {value === 'on_call' ? 'On-call employee' : 'Manager'}
+              </label>
+            ))}
+          </fieldset>
+        </div>
 
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="has_backup" checked={form.has_backup}
-            onChange={handleChange} />
-          This rotation includes a backup on-call person
-        </label>
+        <div>
+          <label className="flex flex-col gap-1">
+            Rotation starts — time
+            <input type="time" name="rotation_start_time" value={form.rotation_start_time}
+              onChange={handleChange} className="border p-2 rounded" required />
+          </label>
+        </div>
 
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="is_active" checked={form.is_active}
-            onChange={handleChange} />
-          Company is active
-        </label>
+        <div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="font-medium">Allowed volunteer types</legend>
+            {['full_rotation', 'individual_days', 'hour_blocks'].map(type => (
+              <label key={type} className="flex items-center gap-2">
+                <input type="checkbox" checked={form.allowed_volunteer_types.includes(type)}
+                  onChange={() => handleVolunteerType(type)} />
+                {type === 'full_rotation' ? 'Full rotation' :
+                 type === 'individual_days' ? 'Individual days' : 'Blocks of hours'}
+              </label>
+            ))}
+          </fieldset>
+        </div>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="font-medium">Who approves volunteer offers?</legend>
-          {(['on_call', 'manager'] as const).map(value => (
-            <label key={value} className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="approval_approver"
-                value={value}
-                checked={form.approval_approver === value}
-                onChange={handleChange}
-              />
-              {value === 'on_call' ? 'On-call employee' : 'Manager'}
-            </label>
-          ))}
-        </fieldset>
+        <div>
+          <label className="flex flex-col gap-1">
+            Rotation ends — day
+            <select name="rotation_end_day" value={form.rotation_end_day} onChange={handleChange}
+              className="border p-2 rounded" required>
+              <option value="">Select...</option>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+        </div>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="font-medium">Allowed volunteer types</legend>
-          {['full_rotation', 'individual_days', 'hour_blocks'].map(type => (
-            <label key={type} className="flex items-center gap-2">
-              <input type="checkbox" checked={form.allowed_volunteer_types.includes(type)}
-                onChange={() => handleVolunteerType(type)} />
-              {type === 'full_rotation' ? 'Full rotation' :
-               type === 'individual_days' ? 'Individual days' : 'Blocks of hours'}
-            </label>
-          ))}
-        </fieldset>
+        <div className="col-start-1">
+          <label className="flex flex-col gap-1">
+            Rotation ends — time
+            <input type="time" name="rotation_end_time" value={form.rotation_end_time}
+              onChange={handleChange} className="border p-2 rounded" required />
+          </label>
+        </div>
 
-        <button type="submit"
-          className="bg-black text-white p-2 rounded mt-4">
-          Save and continue
-        </button>
+        <div className="col-span-2">
+          <button type="submit"
+            className="bg-black text-white p-2 rounded mt-4">
+            Save and continue
+          </button>
+        </div>
 
       </form>
     </main>
