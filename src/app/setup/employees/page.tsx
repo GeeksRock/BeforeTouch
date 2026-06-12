@@ -156,7 +156,10 @@ function EmployeesForm() {
       )}
 
       <button
-        onClick={() => router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)}
+        onClick={() => {
+          if ((form.name || form.contact) && !window.confirm('You have unsaved employee details. Continue anyway?')) return
+          router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)
+        }}
         className="border border-black p-2 rounded w-full"
       >
         Continue
