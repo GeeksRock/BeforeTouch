@@ -47,9 +47,9 @@ export default function SetupPage() {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
   return (
-    <main className="max-w-lg mx-auto p-8">
+    <main className="max-w-3xl mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Set up your company</h1>
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-x-12 gap-y-4">
 
         <div>
           <label className="flex flex-col gap-1">
