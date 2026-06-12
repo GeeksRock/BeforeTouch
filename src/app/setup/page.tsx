@@ -49,7 +49,7 @@ export default function SetupPage() {
   return (
     <main className="max-w-3xl mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Set up your company</h1>
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-x-12 gap-y-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-[1fr_1.2fr] gap-x-12 gap-y-4">
 
         <div>
           <label className="flex flex-col gap-1">
