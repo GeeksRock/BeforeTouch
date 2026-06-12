@@ -12,6 +12,7 @@ export default function SetupPage() {
     rotation_end_day: '',
     rotation_end_time: '',
     has_backup: false,
+    is_active: false,
     allowed_volunteer_types: [] as string[],
     approval_approver: 'on_call' as 'on_call' | 'manager',
   })
@@ -102,6 +103,12 @@ export default function SetupPage() {
           <input type="checkbox" name="has_backup" checked={form.has_backup}
             onChange={handleChange} />
           This rotation includes a backup on-call person
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="is_active" checked={form.is_active}
+            onChange={handleChange} />
+          Company is active
         </label>
 
         <fieldset className="flex flex-col gap-2">

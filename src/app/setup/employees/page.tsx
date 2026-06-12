@@ -33,6 +33,7 @@ function EmployeesForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const companyId = searchParams.get('company_id') ?? ''
+  const companyIsActive = searchParams.get('is_active') === 'true'
 
   const [form, setForm] = useState<EmployeeForm>(emptyForm())
   const [employees, setEmployees] = useState<AddedEmployee[]>([])
@@ -113,8 +114,10 @@ function EmployeesForm() {
         </label>
 
         <label className="flex items-center gap-2">
-          <input type="checkbox" name="is_active" checked={form.is_active}
-            onChange={handleChange} />
+          <input type="checkbox" name="is_active"
+            checked={companyIsActive ? form.is_active : false}
+            onChange={handleChange}
+            disabled={!companyIsActive} />
           Active
         </label>
 
@@ -153,7 +156,7 @@ function EmployeesForm() {
       )}
 
       <button
-        onClick={() => router.push(`/setup/rotation?company_id=${companyId}`)}
+        onClick={() => router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)}
         className="border border-black p-2 rounded w-full"
       >
         Continue
