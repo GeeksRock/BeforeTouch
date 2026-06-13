@@ -39,6 +39,7 @@ function EmployeesForm() {
   const [employees, setEmployees] = useState<AddedEmployee[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value, type, checked } = e.target
@@ -157,13 +158,38 @@ function EmployeesForm() {
 
       <button
         onClick={() => {
-          if ((form.name || form.contact) && !window.confirm('You have unsaved employee details. Continue anyway?')) return
-          router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)
+          if (form.name || form.contact) {
+            setShowConfirm(true)
+          } else {
+            router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)
+          }
         }}
         className="border border-black p-2 rounded w-full"
       >
         Continue
       </button>
+
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+            <p className="font-medium">You have unsaved employee details. Continue anyway?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="border border-black px-4 py-2 rounded"
+              >
+                Go back
+              </button>
+              <button
+                onClick={() => router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)}
+                className="bg-black text-white px-4 py-2 rounded"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
