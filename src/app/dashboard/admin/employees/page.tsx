@@ -141,7 +141,7 @@ export default function ManageEmployeesPage() {
 
       {editingId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+          <div className="bg-white text-gray-900 rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
             <h2 className="font-semibold">Edit employee</h2>
 
             <label className="flex flex-col gap-1">
@@ -185,7 +185,7 @@ export default function ManageEmployeesPage() {
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+          <div className="bg-white text-gray-900 rounded-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
             <h2 className="font-semibold">Add employee</h2>
 
             <form onSubmit={handleAddSubmit} className="flex flex-col gap-4">
