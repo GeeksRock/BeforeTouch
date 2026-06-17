@@ -1,13 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { supabase } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-
-vi.mock('@/lib/supabase', () => ({
-  supabase: { from: vi.fn() },
-}))
 
 vi.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: {
+    from: vi.fn(),
     auth: { admin: { inviteUserByEmail: vi.fn() } },
   },
 }))
@@ -22,7 +18,7 @@ describe('saveEmployee', () => {
     vi.resetAllMocks()
     const selectMock = vi.fn().mockReturnValue({ single: singleMock })
     insertMock.mockReturnValue({ select: selectMock })
-    vi.mocked(supabase.from).mockReturnValue({ insert: insertMock } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
   })
 
   const validData = {
@@ -39,7 +35,7 @@ describe('saveEmployee', () => {
 
     await saveEmployee(validData)
 
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('employee')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
     expect(insertMock).toHaveBeenCalledWith([validData])
   })
 
@@ -74,7 +70,7 @@ describe('inviteEmployee', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     updateMock.mockReturnValue({ eq: eqMock })
-    vi.mocked(supabase.from).mockReturnValue({ update: updateMock } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ update: updateMock } as never)
   })
 
   it('calls inviteUserByEmail with the given email', async () => {
@@ -92,7 +88,7 @@ describe('inviteEmployee', () => {
 
     await inviteEmployee('emp-1', 'jane@example.com')
 
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('employee')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
     expect(updateMock).toHaveBeenCalledWith({ auth_user_id: 'auth-uuid-1' })
     expect(eqMock).toHaveBeenCalledWith('id', 'emp-1')
   })
