@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { fetchAdminDashboard, type AdminDashboardData } from './actions'
 
 export default function AdminDashboardPage() {
@@ -43,7 +44,12 @@ export default function AdminDashboardPage() {
       </section>
 
       <section>
-        <h2 className="font-semibold mb-2">Employees</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-semibold">Employees</h2>
+          <Link href="/dashboard/admin/employees" className="text-sm underline">
+            Manage
+          </Link>
+        </div>
         {employees.length === 0 ? (
           <p className="text-sm text-gray-500">No employees yet.</p>
         ) : (
