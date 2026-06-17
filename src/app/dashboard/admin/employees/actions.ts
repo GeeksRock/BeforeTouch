@@ -80,3 +80,35 @@ export async function addEmployee(form: AddEmployeeForm): Promise<{ data: { id: 
 
   return { data: { id: data.id }, error: null }
 }
+
+export interface BulkEmployeeInput {
+  name: string
+  contact: string
+  can_volunteer: boolean
+  can_receive_volunteers: boolean
+  is_active: boolean
+}
+
+export async function bulkAddEmployees(rows: BulkEmployeeInput[]): Promise<{ data: { count: number } | null; error: string | null }> {
+  if (rows.length === 0) return { data: { count: 0 }, error: null }
+
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { data: null, error: 'Not authenticated' }
+
+  const { data: company, error: compError } = await client
+    .from('company')
+    .select('id')
+    .eq('owner_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (compError) return { data: null, error: compError.message }
+  if (!company) return { data: null, error: 'No company found for this account' }
+
+  const { error } = await supabaseAdmin
+    .from('employee')
+    .insert(rows.map(r => ({ ...r, company_id: company.id })))
+  if (error) return { data: null, error: error.message }
+
+  return { data: { count: rows.length }, error: null }
+}

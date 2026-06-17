@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: { from: vi.fn() },
 }))
 
-const { listEmployees, updateEmployee, addEmployee } = await import('./actions')
+const { listEmployees, updateEmployee, addEmployee, bulkAddEmployees } = await import('./actions')
 
 function mockCompanyLookup(company: { id: string } | null, error: { message: string } | null = null) {
   const maybeSingleMock = vi.fn().mockResolvedValue({ data: company, error })
@@ -170,5 +170,71 @@ describe('addEmployee', () => {
     const result = await addEmployee(validForm)
 
     expect(result).toEqual({ data: null, error: 'insert failed' })
+  })
+})
+
+describe('bulkAddEmployees', () => {
+  const getUserMock = vi.fn()
+  const fromMock = vi.fn()
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: getUserMock },
+      from: fromMock,
+    } as never)
+  })
+
+  const rows = [
+    { name: 'Alice', contact: 'alice@x.com', can_volunteer: true, can_receive_volunteers: true, is_active: true },
+    { name: 'Bob', contact: 'bob@x.com', can_volunteer: false, can_receive_volunteers: true, is_active: true },
+  ]
+
+  it('returns a count of 0 without touching the database for an empty list', async () => {
+    const result = await bulkAddEmployees([])
+
+    expect(result).toEqual({ data: { count: 0 }, error: null })
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+
+  it('returns an error when not authenticated', async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } })
+
+    const result = await bulkAddEmployees(rows)
+
+    expect(result).toEqual({ data: null, error: 'Not authenticated' })
+  })
+
+  it('returns an error when no company is found', async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup(null) })
+
+    const result = await bulkAddEmployees(rows)
+
+    expect(result).toEqual({ data: null, error: 'No company found for this account' })
+  })
+
+  it('inserts all rows tagged with the company id', async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
+    const insertMock = vi.fn().mockResolvedValue({ error: null })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
+
+    const result = await bulkAddEmployees(rows)
+
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
+    expect(insertMock).toHaveBeenCalledWith(rows.map(r => ({ ...r, company_id: 'company-1' })))
+    expect(result).toEqual({ data: { count: 2 }, error: null })
+  })
+
+  it('returns the insert error when it fails', async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
+    const insertMock = vi.fn().mockResolvedValue({ error: { message: 'bulk insert failed' } })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
+
+    const result = await bulkAddEmployees(rows)
+
+    expect(result).toEqual({ data: null, error: 'bulk insert failed' })
   })
 })
