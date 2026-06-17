@@ -41,6 +41,7 @@ export default function ManageEmployeesPage() {
   const [bulkImporting, setBulkImporting] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
   const [bulkSkipped, setBulkSkipped] = useState<string[]>([])
+  const [bulkMode, setBulkMode] = useState<'paste' | 'file'>('paste')
 
   function reloadEmployees() {
     listEmployees()
@@ -302,14 +303,37 @@ export default function ManageEmployeesPage() {
               Download template
             </button>
 
-            <input type="file" accept=".csv,text/csv" onChange={handleFileChange} className="text-sm" />
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="bulkMode"
+                  checked={bulkMode === 'paste'}
+                  onChange={() => { setBulkMode('paste'); setBulkText('') }}
+                />
+                Paste rows
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="bulkMode"
+                  checked={bulkMode === 'file'}
+                  onChange={() => { setBulkMode('file'); setBulkText('') }}
+                />
+                Upload CSV file
+              </label>
+            </div>
 
-            <textarea
-              value={bulkText}
-              onChange={e => setBulkText(e.target.value)}
-              placeholder="name,contact,can_volunteer,can_receive_volunteers,is_active"
-              className="border p-2 rounded text-sm font-mono h-32"
-            />
+            {bulkMode === 'paste' ? (
+              <textarea
+                value={bulkText}
+                onChange={e => setBulkText(e.target.value)}
+                placeholder="name,contact,can_volunteer,can_receive_volunteers,is_active"
+                className="border p-2 rounded text-sm font-mono h-32"
+              />
+            ) : (
+              <input type="file" accept=".csv,text/csv" onChange={handleFileChange} className="text-sm" />
+            )}
 
             {bulkError && <p className="text-sm text-red-600">{bulkError}</p>}
 
@@ -320,7 +344,7 @@ export default function ManageEmployeesPage() {
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
-                onClick={() => { setShowBulkImport(false); setBulkText(''); setBulkError(null); setBulkSkipped([]) }}
+                onClick={() => { setShowBulkImport(false); setBulkText(''); setBulkError(null); setBulkSkipped([]); setBulkMode('paste') }}
                 className="border border-black px-4 py-2 rounded"
               >
                 Cancel
