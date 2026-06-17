@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { listEmployees, updateEmployee, addEmployee, type EmployeeRow } from './actions'
+import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, type EmployeeRow } from './actions'
+import { parseEmployeeCsv } from './csv'
 import { inviteEmployee } from '@/app/setup/employees/actions'
 
 interface EmployeeFormFields {
@@ -35,7 +36,13 @@ export default function ManageEmployeesPage() {
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const [showBulkImport, setShowBulkImport] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+  const [bulkImporting, setBulkImporting] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [bulkSkipped, setBulkSkipped] = useState<string[]>([])
+
+  function reloadEmployees() {
     listEmployees()
       .then(({ data, error }) => {
         if (error) setError(error)
@@ -43,6 +50,10 @@ export default function ManageEmployeesPage() {
       })
       .catch(() => setError('Failed to load employees'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    reloadEmployees()
   }, [])
 
   function openEdit(emp: EmployeeRow) {
@@ -107,6 +118,51 @@ export default function ManageEmployeesPage() {
     inviteEmployee(data.id, snapshot.contact).catch(() => {})
   }
 
+  function downloadTemplate() {
+    const csv = 'name,contact,can_volunteer,can_receive_volunteers,is_active\nJane Doe,jane@example.com,true,true,true\n'
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'employee-import-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setBulkText(String(reader.result ?? ''))
+    reader.readAsText(file)
+  }
+
+  async function handleBulkImport() {
+    setBulkImporting(true)
+    setBulkError(null)
+    setBulkSkipped([])
+
+    const { rows, errors } = parseEmployeeCsv(bulkText)
+    if (rows.length === 0) {
+      setBulkError(errors[0] ?? 'No valid rows found.')
+      setBulkImporting(false)
+      return
+    }
+
+    const { error } = await bulkAddEmployees(rows)
+    if (error) {
+      setBulkError(error)
+      setBulkImporting(false)
+      return
+    }
+
+    reloadEmployees()
+    setBulkSkipped(errors)
+    setBulkText('')
+    setBulkImporting(false)
+    if (errors.length === 0) setShowBulkImport(false)
+  }
+
   if (loading) return <main className="max-w-lg mx-auto p-8">Loading…</main>
   if (error) return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
 
@@ -114,9 +170,14 @@ export default function ManageEmployeesPage() {
     <main className="max-w-lg mx-auto p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Manage employees</h1>
-        <button onClick={() => setShowAdd(true)} className="bg-black text-white px-3 py-2 rounded text-sm">
-          + Add employee
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowBulkImport(true)} className="border border-black px-3 py-2 rounded text-sm">
+            Bulk import
+          </button>
+          <button onClick={() => setShowAdd(true)} className="bg-black text-white px-3 py-2 rounded text-sm">
+            + Add employee
+          </button>
+        </div>
       </div>
 
       {(!employees || employees.length === 0) ? (
@@ -225,6 +286,49 @@ export default function ManageEmployeesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showBulkImport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white text-gray-900 rounded-lg p-6 max-w-md w-full mx-4 flex flex-col gap-4">
+            <h2 className="font-semibold">Bulk import employees</h2>
+
+            <p className="text-sm text-gray-600">
+              Upload a CSV file or paste rows below. First row must be a header with at least name and contact columns.
+            </p>
+
+            <button type="button" onClick={downloadTemplate} className="text-sm underline text-left">
+              Download template
+            </button>
+
+            <input type="file" accept=".csv,text/csv" onChange={handleFileChange} className="text-sm" />
+
+            <textarea
+              value={bulkText}
+              onChange={e => setBulkText(e.target.value)}
+              placeholder="name,contact,can_volunteer,can_receive_volunteers,is_active"
+              className="border p-2 rounded text-sm font-mono h-32"
+            />
+
+            {bulkError && <p className="text-sm text-red-600">{bulkError}</p>}
+
+            {bulkSkipped.length > 0 && (
+              <p className="text-sm text-amber-600">{bulkSkipped.length} row(s) skipped, check the contents.</p>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowBulkImport(false); setBulkText(''); setBulkError(null); setBulkSkipped([]) }}
+                className="border border-black px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button type="button" onClick={handleBulkImport} disabled={bulkImporting} className="bg-black text-white px-4 py-2 rounded">
+                {bulkImporting ? 'Importing…' : 'Import'}
+              </button>
+            </div>
           </div>
         </div>
       )}
