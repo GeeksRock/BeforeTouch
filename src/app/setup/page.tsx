@@ -55,7 +55,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Company name
             <input name="name" value={form.name} onChange={handleChange}
-              className="border p-2 rounded" required />
+              className="border p-2 rounded bg-white text-gray-900" required />
           </label>
         </div>
 
@@ -71,7 +71,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Rotation length
             <select name="rotation_length" value={form.rotation_length} onChange={handleChange}
-              className="border p-2 rounded" required>
+              className="border p-2 rounded bg-white text-gray-900" required>
               <option value="">Select...</option>
               <option value="1_week">1 week</option>
               <option value="2_weeks">2 weeks</option>
@@ -93,7 +93,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Rotation starts — day
             <select name="rotation_start_day" value={form.rotation_start_day} onChange={handleChange}
-              className="border p-2 rounded" required>
+              className="border p-2 rounded bg-white text-gray-900" required>
               <option value="">Select...</option>
               {days.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
@@ -122,7 +122,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Rotation starts — time
             <input type="time" name="rotation_start_time" value={form.rotation_start_time}
-              onChange={handleChange} className="border p-2 rounded" required />
+              onChange={handleChange} className="border p-2 rounded bg-white text-gray-900" required />
           </label>
         </div>
 
@@ -144,7 +144,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Rotation ends — day
             <select name="rotation_end_day" value={form.rotation_end_day} onChange={handleChange}
-              className="border p-2 rounded" required>
+              className="border p-2 rounded bg-white text-gray-900" required>
               <option value="">Select...</option>
               {days.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
@@ -155,7 +155,7 @@ export default function SetupPage() {
           <label className="flex flex-col gap-1">
             Rotation ends — time
             <input type="time" name="rotation_end_time" value={form.rotation_end_time}
-              onChange={handleChange} className="border p-2 rounded" required />
+              onChange={handleChange} className="border p-2 rounded bg-white text-gray-900" required />
           </label>
         </div>
 

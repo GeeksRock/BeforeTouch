@@ -42,7 +42,7 @@ function SlotFields({
         <select
           value={slot.employee_id}
           onChange={e => onChange({ ...slot, employee_id: e.target.value })}
-          className="border p-2 rounded"
+          className="border p-2 rounded bg-white text-gray-900"
           required
         >
           <option value="">Select…</option>
@@ -58,7 +58,7 @@ function SlotFields({
           type="datetime-local"
           value={slot.start_datetime}
           onChange={e => onChange({ ...slot, start_datetime: e.target.value })}
-          className="border p-2 rounded"
+          className="border p-2 rounded bg-white text-gray-900"
           required
         />
       </label>
@@ -69,7 +69,7 @@ function SlotFields({
           type="datetime-local"
           value={slot.end_datetime}
           onChange={e => onChange({ ...slot, end_datetime: e.target.value })}
-          className="border p-2 rounded"
+          className="border p-2 rounded bg-white text-gray-900"
           required
         />
       </label>

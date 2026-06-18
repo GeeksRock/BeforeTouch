@@ -198,7 +198,7 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
                   <select
                     value={selectedType}
                     onChange={e => { setSelectedType(e.target.value); setSelectedDays([]) }}
-                    className="border p-2 rounded"
+                    className="border p-2 rounded bg-white text-gray-900"
                   >
                     {allowedVolunteerTypes.map(type => (
                       <option key={type} value={type}>{type}</option>
@@ -235,7 +235,7 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
                       value={startDatetime}
                       min={toDatetimeLocal(rotation.start_datetime)}
                       onChange={e => setStartDatetime(e.target.value)}
-                      className="border p-2 rounded"
+                      className="border p-2 rounded bg-white text-gray-900"
                       required
                     />
                   </label>
@@ -246,7 +246,7 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
                       value={endDatetime}
                       max={toDatetimeLocal(rotation.end_datetime)}
                       onChange={e => setEndDatetime(e.target.value)}
-                      className="border p-2 rounded"
+                      className="border p-2 rounded bg-white text-gray-900"
                       required
                     />
                   </label>
