@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { saveEmployee, inviteEmployee } from './actions'
@@ -87,7 +88,10 @@ function EmployeesForm() {
 
   return (
     <main className="max-w-lg mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Add employees</h1>
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/setup" className="text-sm underline">← Back</Link>
+        <h1 className="text-2xl font-bold">Add employees</h1>
+      </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8">
         <label className="flex flex-col gap-1">

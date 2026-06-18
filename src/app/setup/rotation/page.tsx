@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -126,7 +127,10 @@ function RotationForm() {
 
   return (
     <main className="max-w-lg mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Set up rotation</h1>
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/setup/employees" className="text-sm underline">← Back</Link>
+        <h1 className="text-2xl font-bold">Set up rotation</h1>
+      </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <SlotFields label="Current on-call" slot={current} onChange={setCurrent} employees={employees} />
