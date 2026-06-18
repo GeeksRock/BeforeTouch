@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { saveCompany } from './actions'
 
 export default function SetupPage() {
+  const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     name: '',
     rotation_length: '',
@@ -41,7 +42,9 @@ export default function SetupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitting(true)
     await saveCompany(form)
+    setSubmitting(false)
   }
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -160,9 +163,9 @@ export default function SetupPage() {
         </div>
 
         <div className="col-span-2">
-          <button type="submit"
-            className="bg-black text-white p-2 rounded mt-4">
-            Save and continue
+          <button type="submit" disabled={submitting}
+            className="bg-black text-white p-2 rounded mt-4 disabled:opacity-50">
+            {submitting ? 'Saving…' : 'Save and continue'}
           </button>
         </div>
 
