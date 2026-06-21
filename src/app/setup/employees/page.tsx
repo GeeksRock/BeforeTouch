@@ -28,7 +28,7 @@ const emptyForm = (): EmployeeForm => ({
   contact: '',
   can_volunteer: true,
   can_receive_volunteers: true,
-  is_active: true,
+  is_active: false,
 })
 
 function EmployeesForm() {
