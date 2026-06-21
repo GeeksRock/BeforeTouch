@@ -76,13 +76,14 @@ function EmployeesForm() {
     // Employee persisted — update UI immediately and reset the form
     setEmployees(prev => [
       ...prev,
-      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: snapshot.is_active ? 'pending' : 'skipped' },
+      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: (snapshot.is_active && companyIsActive) ? 'pending' : 'skipped' },
     ])
     setForm(emptyForm())
     setSaving(false)
 
-    // Inactive employees are not invited yet — managers can send invites later once active
-    if (!snapshot.is_active) return
+    // Invites only go out when both the employee and the company are active —
+    // managers can send invites later via bulk invite once both are true
+    if (!snapshot.is_active || !companyIsActive) return
 
     // Send the invite in the background; update the list item when it settles
     try {
@@ -132,9 +133,8 @@ function EmployeesForm() {
 
         <label className="flex items-center gap-2">
           <input type="checkbox" name="is_active"
-            checked={companyIsActive ? form.is_active : false}
-            onChange={handleChange}
-            disabled={!companyIsActive} />
+            checked={form.is_active}
+            onChange={handleChange} />
           Active
         </label>
 
@@ -163,7 +163,7 @@ function EmployeesForm() {
                     <span className="text-green-700">Invited</span>
                   )}
                   {emp.inviteStatus === 'skipped' && (
-                    <span className="text-gray-400">Not invited (inactive)</span>
+                    <span className="text-gray-400">Not invited yet</span>
                   )}
                   {typeof emp.inviteStatus === 'object' && (
                     <span className="text-red-600">{emp.inviteStatus.error}</span>
