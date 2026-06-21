@@ -146,7 +146,7 @@ function RotationForm() {
   return (
     <main className="max-w-lg mx-auto p-8">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/setup/employees" className="text-sm underline">← Back</Link>
+        <Link href={`/setup/employees?company_id=${companyId}`} className="text-sm underline">← Back</Link>
         <h1 className="text-2xl font-bold">Set up rotation</h1>
       </div>
 
