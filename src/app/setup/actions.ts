@@ -27,5 +27,5 @@ export async function saveCompany(data: CompanyForm) {
     .select('id')
     .single()
   if (error) throw new Error(error.message)
-  redirect(`/setup/employees?company_id=${company.id}`)
+  redirect(`/setup/employees?company_id=${company.id}&is_active=${data.is_active}`)
 }
