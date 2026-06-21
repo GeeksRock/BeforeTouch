@@ -14,7 +14,7 @@ interface EmployeeForm {
   is_active: boolean
 }
 
-type InviteStatus = 'pending' | 'invited' | { error: string }
+type InviteStatus = 'pending' | 'invited' | 'skipped' | { error: string }
 
 interface AddedEmployee {
   id: string
@@ -76,10 +76,13 @@ function EmployeesForm() {
     // Employee persisted — update UI immediately and reset the form
     setEmployees(prev => [
       ...prev,
-      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: 'pending' },
+      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: snapshot.is_active ? 'pending' : 'skipped' },
     ])
     setForm(emptyForm())
     setSaving(false)
+
+    // Inactive employees are not invited yet — managers can send invites later once active
+    if (!snapshot.is_active) return
 
     // Send the invite in the background; update the list item when it settles
     try {
@@ -158,6 +161,9 @@ function EmployeesForm() {
                   )}
                   {emp.inviteStatus === 'invited' && (
                     <span className="text-green-700">Invited</span>
+                  )}
+                  {emp.inviteStatus === 'skipped' && (
+                    <span className="text-gray-400">Not invited (inactive)</span>
                   )}
                   {typeof emp.inviteStatus === 'object' && (
                     <span className="text-red-600">{emp.inviteStatus.error}</span>
