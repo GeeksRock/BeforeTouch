@@ -5,6 +5,7 @@ import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { saveEmployee, inviteEmployee } from './actions'
 import { deleteEmployee } from '@/app/dashboard/admin/employees/actions'
+import { isValidUuid } from '@/lib/validation'
 
 interface EmployeeForm {
   name: string
@@ -43,6 +44,17 @@ function EmployeesForm() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  if (!isValidUuid(companyId)) {
+    return (
+      <main className="max-w-lg mx-auto p-8">
+        <p className="text-red-600 mb-4">
+          We couldn&apos;t find a company for this page. Please start from setup again.
+        </p>
+        <Link href="/setup" className="underline">← Back to setup</Link>
+      </main>
+    )
+  }
 
   async function handleDelete(id: string) {
     setDeletingId(id)

@@ -5,6 +5,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { saveRotation } from './actions'
+import { isValidUuid } from '@/lib/validation'
 
 interface Employee {
   id: string
@@ -122,6 +123,17 @@ function RotationForm() {
     }
     if (companyId) load()
   }, [companyId])
+
+  if (!isValidUuid(companyId)) {
+    return (
+      <main className="max-w-lg mx-auto p-8">
+        <p className="text-red-600 mb-4">
+          We couldn&apos;t find a company for this page. Please start from setup again.
+        </p>
+        <Link href="/setup" className="underline">← Back to setup</Link>
+      </main>
+    )
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
