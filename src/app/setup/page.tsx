@@ -90,6 +90,11 @@ export default function SetupPage() {
               onChange={handleChange} />
             Company is active
           </label>
+          {!form.is_active && (
+            <p className="text-sm text-gray-600 mt-1">
+              While unchecked, employees you add won't receive invite emails. You can activate the company later.
+            </p>
+          )}
         </div>
 
         <div>
