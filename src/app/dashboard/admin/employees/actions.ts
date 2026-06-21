@@ -112,3 +112,9 @@ export async function bulkAddEmployees(rows: BulkEmployeeInput[]): Promise<{ dat
 
   return { data: { count: rows.length }, error: null }
 }
+
+export async function deleteEmployee(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabaseAdmin.from('employee').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { error: null }
+}

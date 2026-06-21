@@ -87,10 +87,27 @@ function RotationForm() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [current, setCurrent] = useState<RotationSlot>(emptySlot())
-  const [next, setNext] = useState<RotationSlot>(emptySlot())
-  const [backupCurrent, setBackupCurrent] = useState<RotationSlot>(emptySlot())
-  const [backupNext, setBackupNext] = useState<RotationSlot>(emptySlot())
+  const storageKey = `rotation-draft-${companyId}`
+
+  function loadDraft() {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (!saved) return null
+      return JSON.parse(saved)
+    } catch { return null }
+  }
+
+  const draft = loadDraft()
+  const [current, setCurrent] = useState<RotationSlot>(draft?.current ?? emptySlot())
+  const [next, setNext] = useState<RotationSlot>(draft?.next ?? emptySlot())
+  const [backupCurrent, setBackupCurrent] = useState<RotationSlot>(draft?.backupCurrent ?? emptySlot())
+  const [backupNext, setBackupNext] = useState<RotationSlot>(draft?.backupNext ?? emptySlot())
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ current, next, backupCurrent, backupNext }))
+    } catch {}
+  }, [current, next, backupCurrent, backupNext, storageKey])
 
   useEffect(() => {
     async function load() {
@@ -116,6 +133,7 @@ function RotationForm() {
         next,
         ...(hasBackup ? { backup_current: backupCurrent, backup_next: backupNext } : {}),
       })
+      try { localStorage.removeItem(storageKey) } catch {}
     } finally {
       setSaving(false)
     }

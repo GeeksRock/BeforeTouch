@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: { from: vi.fn() },
 }))
 
-const { listEmployees, updateEmployee, addEmployee, bulkAddEmployees } = await import('./actions')
+const { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, deleteEmployee } = await import('./actions')
 
 function mockCompanyLookup(company: { id: string } | null, error: { message: string } | null = null) {
   const maybeSingleMock = vi.fn().mockResolvedValue({ data: company, error })
@@ -236,5 +236,35 @@ describe('bulkAddEmployees', () => {
     const result = await bulkAddEmployees(rows)
 
     expect(result).toEqual({ data: null, error: 'bulk insert failed' })
+  })
+})
+
+describe('deleteEmployee', () => {
+  const eqMock = vi.fn()
+  const deleteMock = vi.fn()
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    deleteMock.mockReturnValue({ eq: eqMock })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ delete: deleteMock } as never)
+  })
+
+  it('deletes the employee by id', async () => {
+    eqMock.mockResolvedValue({ error: null })
+
+    const result = await deleteEmployee('emp-1')
+
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
+    expect(deleteMock).toHaveBeenCalled()
+    expect(eqMock).toHaveBeenCalledWith('id', 'emp-1')
+    expect(result).toEqual({ error: null })
+  })
+
+  it('returns the error when delete fails', async () => {
+    eqMock.mockResolvedValue({ error: { message: 'delete failed' } })
+
+    const result = await deleteEmployee('emp-1')
+
+    expect(result).toEqual({ error: 'delete failed' })
   })
 })

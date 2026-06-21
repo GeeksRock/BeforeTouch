@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { saveEmployee, inviteEmployee } from './actions'
+import { deleteEmployee } from '@/app/dashboard/admin/employees/actions'
 
 interface EmployeeForm {
   name: string
@@ -41,6 +42,14 @@ function EmployeesForm() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleDelete(id: string) {
+    setDeletingId(id)
+    await deleteEmployee(id)
+    setEmployees(prev => prev.filter(emp => emp.id !== id))
+    setDeletingId(null)
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value, type, checked } = e.target
@@ -143,7 +152,7 @@ function EmployeesForm() {
                 <span>
                   <span className="font-medium">{emp.name}</span> — {emp.contact}
                 </span>
-                <span className="shrink-0">
+                <span className="shrink-0 flex items-center gap-3">
                   {emp.inviteStatus === 'pending' && (
                     <span className="text-gray-400">Inviting…</span>
                   )}
@@ -152,6 +161,16 @@ function EmployeesForm() {
                   )}
                   {typeof emp.inviteStatus === 'object' && (
                     <span className="text-red-600">{emp.inviteStatus.error}</span>
+                  )}
+                  {emp.inviteStatus !== 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(emp.id)}
+                      disabled={deletingId === emp.id}
+                      className="text-red-600 text-xs underline disabled:opacity-50"
+                    >
+                      {deletingId === emp.id ? 'Removing…' : 'Remove'}
+                    </button>
                   )}
                 </span>
               </li>
