@@ -7,10 +7,13 @@ vi.mock('@/lib/supabase-server', () => ({
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
-  supabaseAdmin: { from: vi.fn() },
+  supabaseAdmin: {
+    from: vi.fn(),
+    auth: { admin: { inviteUserByEmail: vi.fn() } },
+  },
 }))
 
-const { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, deleteEmployee } = await import('./actions')
+const { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, bulkInviteEmployees, deleteEmployee } = await import('./actions')
 
 function mockCompanyLookup(company: { id: string } | null, error: { message: string } | null = null) {
   const maybeSingleMock = vi.fn().mockResolvedValue({ data: company, error })
@@ -236,6 +239,89 @@ describe('bulkAddEmployees', () => {
     const result = await bulkAddEmployees(rows)
 
     expect(result).toEqual({ data: null, error: 'bulk insert failed' })
+  })
+})
+
+describe('bulkInviteEmployees', () => {
+  const fromMock = vi.fn()
+  const inviteMock = vi.mocked(supabaseAdmin.auth.admin.inviteUserByEmail)
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
+  })
+
+  function mockEmployeeFetch(employee: Record<string, unknown> | null, error: { message: string } | null = null) {
+    const singleMock = vi.fn().mockResolvedValue({ data: employee, error })
+    const eqMock = vi.fn().mockReturnValue({ single: singleMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    return { select: selectMock }
+  }
+
+  function mockUpdateOk() {
+    const eqMock = vi.fn().mockResolvedValue({ error: null })
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock })
+    return { update: updateMock }
+  }
+
+  it('returns empty results for an empty id list', async () => {
+    const result = await bulkInviteEmployees([])
+
+    expect(result).toEqual({ invited: [], failed: [] })
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+
+  it('invites an active, never-invited employee', async () => {
+    fromMock
+      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-1', contact: 'a@x.com', is_active: true, auth_user_id: null }))
+      .mockReturnValueOnce(mockUpdateOk())
+    inviteMock.mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null } as never)
+
+    const result = await bulkInviteEmployees(['emp-1'])
+
+    expect(inviteMock).toHaveBeenCalledWith('a@x.com')
+    expect(result).toEqual({ invited: ['emp-1'], failed: [] })
+  })
+
+  it('skips and reports an inactive employee without inviting', async () => {
+    fromMock.mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-2', contact: 'b@x.com', is_active: false, auth_user_id: null }))
+
+    const result = await bulkInviteEmployees(['emp-2'])
+
+    expect(inviteMock).not.toHaveBeenCalled()
+    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-2', error: 'Employee is inactive' }] })
+  })
+
+  it('skips and reports an already-invited employee without re-inviting', async () => {
+    fromMock.mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-3', contact: 'c@x.com', is_active: true, auth_user_id: 'auth-existing' }))
+
+    const result = await bulkInviteEmployees(['emp-3'])
+
+    expect(inviteMock).not.toHaveBeenCalled()
+    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-3', error: 'Employee already invited' }] })
+  })
+
+  it('reports a fetch error without throwing', async () => {
+    fromMock.mockReturnValueOnce(mockEmployeeFetch(null, { message: 'fetch failed' }))
+
+    const result = await bulkInviteEmployees(['emp-4'])
+
+    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-4', error: 'fetch failed' }] })
+  })
+
+  it('continues processing remaining ids after one fails', async () => {
+    fromMock
+      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-5', contact: 'bad@x.com', is_active: false, auth_user_id: null }))
+      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-6', contact: 'good@x.com', is_active: true, auth_user_id: null }))
+      .mockReturnValueOnce(mockUpdateOk())
+    inviteMock.mockResolvedValue({ data: { user: { id: 'auth-6' } }, error: null } as never)
+
+    const result = await bulkInviteEmployees(['emp-5', 'emp-6'])
+
+    expect(result).toEqual({
+      invited: ['emp-6'],
+      failed: [{ id: 'emp-5', error: 'Employee is inactive' }],
+    })
   })
 })
 

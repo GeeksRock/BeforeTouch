@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, type EmployeeRow } from './actions'
+import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, bulkInviteEmployees, type EmployeeRow } from './actions'
 import { parseEmployeeCsv } from './csv'
 import { inviteEmployee } from '@/app/setup/employees/actions'
 
@@ -36,6 +36,10 @@ export default function ManageEmployeesPage() {
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [inviting, setInviting] = useState(false)
+  const [inviteResult, setInviteResult] = useState<{ invited: string[]; failed: { id: string; error: string }[] } | null>(null)
+
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkImporting, setBulkImporting] = useState(false)
@@ -56,6 +60,22 @@ export default function ManageEmployeesPage() {
   useEffect(() => {
     reloadEmployees()
   }, [])
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  }
+
+  async function handleSendInvites() {
+    setInviting(true)
+    setInviteResult(null)
+
+    const result = await bulkInviteEmployees(selectedIds)
+
+    setInviteResult(result)
+    setSelectedIds([])
+    setInviting(false)
+    reloadEmployees()
+  }
 
   function openEdit(emp: EmployeeRow) {
     setEditingId(emp.id)
@@ -111,7 +131,7 @@ export default function ManageEmployeesPage() {
       return
     }
 
-    setEmployees(prev => [...(prev ?? []), { id: data.id, ...snapshot }])
+    setEmployees(prev => [...(prev ?? []), { id: data.id, ...snapshot, auth_user_id: null }])
     setAddForm(emptyForm())
     setAdding(false)
     setShowAdd(false)
@@ -181,23 +201,66 @@ export default function ManageEmployeesPage() {
         </div>
       </div>
 
+      {inviteResult && (
+        <div className="mb-4 text-sm border rounded p-3">
+          {inviteResult.invited.length > 0 && (
+            <p className="text-green-700">{inviteResult.invited.length} invite(s) sent.</p>
+          )}
+          {inviteResult.failed.length > 0 && (
+            <p className="text-red-600">{inviteResult.failed.length} invite(s) failed: {inviteResult.failed.map(f => f.error).join(', ')}</p>
+          )}
+        </div>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleSendInvites}
+            disabled={inviting}
+            className="bg-black text-white px-3 py-2 rounded text-sm"
+          >
+            {inviting ? 'Sending…' : `Send invite(s) to ${selectedIds.length} selected`}
+          </button>
+        </div>
+      )}
+
       {(!employees || employees.length === 0) ? (
         <p className="text-sm text-gray-500">No employees yet.</p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {employees.map(emp => (
-            <li key={emp.id}>
-              <button
-                onClick={() => openEdit(emp)}
-                className="w-full text-left border rounded p-3 text-sm flex items-center justify-between hover:bg-gray-50"
-              >
-                <span className="font-medium">{emp.name}</span>
-                <span className={emp.is_active ? 'text-green-700' : 'text-gray-400'}>
-                  {emp.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </button>
-            </li>
-          ))}
+          {employees.map(emp => {
+            const eligible = emp.is_active && !emp.auth_user_id
+            return (
+              <li key={emp.id} className="border rounded p-3 text-sm flex items-center gap-3">
+                {eligible ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(emp.id)}
+                    onChange={() => toggleSelected(emp.id)}
+                    aria-label={`Select ${emp.name} for invite`}
+                  />
+                ) : (
+                  <span className="w-4" />
+                )}
+                <button
+                  onClick={() => openEdit(emp)}
+                  className="flex-1 text-left flex items-center justify-between hover:bg-gray-50"
+                >
+                  <span className="font-medium">{emp.name}</span>
+                  <span className="flex items-center gap-2">
+                    {emp.auth_user_id ? (
+                      <span className="text-gray-400">Already invited</span>
+                    ) : !emp.is_active ? (
+                      <span className="text-gray-400">Inactive — won't be invited</span>
+                    ) : null}
+                    <span className={emp.is_active ? 'text-green-700' : 'text-gray-400'}>
+                      {emp.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
 
