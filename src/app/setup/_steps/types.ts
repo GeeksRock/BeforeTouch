@@ -8,7 +8,6 @@ export type SetupForm = {
   rotation_end_day: string
   rotation_end_time: string
   has_backup: boolean
-  is_active: boolean
   allowed_volunteer_types: string[]
   approval_approver: 'on_call' | 'manager'
 }

@@ -36,7 +36,6 @@ function EmployeesForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const companyId = searchParams.get('company_id') ?? ''
-  const companyIsActive = searchParams.get('is_active') === 'true'
 
   const [form, setForm] = useState<EmployeeForm>(emptyForm())
   const [employees, setEmployees] = useState<AddedEmployee[]>([])
@@ -88,14 +87,12 @@ function EmployeesForm() {
     // Employee persisted — update UI immediately and reset the form
     setEmployees(prev => [
       ...prev,
-      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: (snapshot.is_active && companyIsActive) ? 'pending' : 'skipped' },
+      { id: newId, name: snapshot.name, contact: snapshot.contact, inviteStatus: snapshot.is_active ? 'pending' : 'skipped' },
     ])
     setForm(emptyForm())
     setSaving(false)
 
-    // Invites only go out when both the employee and the company are active —
-    // managers can send invites later via bulk invite once both are true
-    if (!snapshot.is_active || !companyIsActive) return
+    if (!snapshot.is_active) return
 
     // Send the invite in the background; update the list item when it settles
     try {
@@ -202,7 +199,7 @@ function EmployeesForm() {
           if (form.name || form.contact) {
             setShowConfirm(true)
           } else {
-            router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)
+            router.push(`/setup/rotation?company_id=${companyId}`)
           }
         }}
         className="border border-black p-2 rounded w-full"
@@ -222,7 +219,7 @@ function EmployeesForm() {
                 Go back
               </button>
               <button
-                onClick={() => router.push(`/setup/rotation?company_id=${companyId}&is_active=${companyIsActive}`)}
+                onClick={() => router.push(`/setup/rotation?company_id=${companyId}`)}
                 className="bg-black text-white px-4 py-2 rounded"
               >
                 Continue

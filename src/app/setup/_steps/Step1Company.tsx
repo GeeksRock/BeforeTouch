@@ -18,23 +18,6 @@ export default function Step1Company({ form, onChange, onNext }: StepProps) {
         />
       </label>
 
-      <div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="is_active"
-            checked={form.is_active}
-            onChange={onChange}
-          />
-          Company is active
-        </label>
-        {!form.is_active && (
-          <p className="text-sm text-gray-600 mt-1">
-            While unchecked, employees you add won&apos;t receive invite emails. You can activate the company later.
-          </p>
-        )}
-      </div>
-
       <div className="flex justify-end">
         <button
           type="button"

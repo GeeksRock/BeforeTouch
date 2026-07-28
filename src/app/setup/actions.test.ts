@@ -44,7 +44,7 @@ describe('saveCompany', () => {
     await saveCompany(validData)
 
     expect(fromMock).toHaveBeenCalledWith('company')
-    expect(insertMock).toHaveBeenCalledWith([{ ...validData, owner_id: 'user-1' }])
+    expect(insertMock).toHaveBeenCalledWith([{ ...validData, is_active: true, owner_id: 'user-1' }])
   })
 
   it('throws when not authenticated', async () => {

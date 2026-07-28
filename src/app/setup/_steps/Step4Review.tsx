@@ -38,7 +38,6 @@ export default function Step4Review({ form, onNext, onBack, submitting }: StepPr
 
       <div className="flex flex-col">
         <Row label="Company name" value={form.name} />
-        <Row label="Company is active" value={form.is_active ? 'Yes' : 'No'} />
         <Row label="Rotation length" value={rotationLengthLabels[form.rotation_length] ?? form.rotation_length} />
         <Row label="Starts" value={form.rotation_start_day && form.rotation_start_time ? `${form.rotation_start_day} at ${form.rotation_start_time}` : ''} />
         <Row label="Ends" value={form.rotation_end_day && form.rotation_end_time ? `${form.rotation_end_day} at ${form.rotation_end_time}` : ''} />

@@ -11,7 +11,6 @@ interface CompanyForm {
   rotation_end_day: string
   rotation_end_time: string
   has_backup: boolean
-  is_active: boolean
   allowed_volunteer_types: string[]
   approval_approver: 'on_call' | 'manager'
 }
@@ -23,9 +22,9 @@ export async function saveCompany(data: CompanyForm) {
 
   const { data: company, error } = await client
     .from('company')
-    .insert([{ ...data, owner_id: user.id }])
+    .insert([{ ...data, is_active: true, owner_id: user.id }])
     .select('id')
     .single()
   if (error) throw new Error(error.message)
-  redirect(`/setup/employees?company_id=${company.id}&is_active=${data.is_active}`)
+  redirect(`/setup/employees?company_id=${company.id}`)
 }

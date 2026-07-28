@@ -19,7 +19,6 @@ export default function SetupPage() {
     rotation_end_day: '',
     rotation_end_time: '',
     has_backup: false,
-    is_active: false,
     allowed_volunteer_types: [],
     approval_approver: 'on_call',
   })
