@@ -20,6 +20,31 @@ afterEach(() => {
   cleanup()
 })
 
+async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
+}
+
+async function fillStep2(user: ReturnType<typeof userEvent.setup>) {
+  await user.selectOptions(screen.getByLabelText('Rotation length'), '1_week')
+  await user.selectOptions(screen.getByLabelText('Starts — day'), 'Monday')
+  await user.type(screen.getByLabelText('Starts — time'), '08:00')
+  await user.selectOptions(screen.getByLabelText('Ends — day'), 'Monday')
+  await user.type(screen.getByLabelText('Ends — time'), '08:00')
+}
+
+async function fillStep3(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByLabelText('Full rotation'))
+}
+
+async function walkToReview(user: ReturnType<typeof userEvent.setup>) {
+  await fillStep1(user)
+  await user.click(screen.getByRole('button', { name: 'Next' }))
+  await fillStep2(user)
+  await user.click(screen.getByRole('button', { name: 'Next' }))
+  await fillStep3(user)
+  await user.click(screen.getByRole('button', { name: 'Next' }))
+}
+
 describe('SetupPage wizard', () => {
   it('starts on step 1 showing the Company heading', () => {
     render(<SetupPage />)
@@ -29,6 +54,7 @@ describe('SetupPage wizard', () => {
   it('advances to step 2 when Next is clicked', async () => {
     const user = userEvent.setup()
     render(<SetupPage />)
+    await fillStep1(user)
     await user.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByRole('heading', { name: 'Rotation schedule' })).toBeInTheDocument()
   })
@@ -47,10 +73,7 @@ describe('SetupPage wizard', () => {
   it('shows entered values on the review step', async () => {
     const user = userEvent.setup()
     render(<SetupPage />)
-    await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await walkToReview(user)
     expect(screen.getByRole('heading', { name: 'Review and save' })).toBeInTheDocument()
     expect(screen.getByText('Acme HVAC')).toBeInTheDocument()
   })
@@ -58,10 +81,7 @@ describe('SetupPage wizard', () => {
   it('calls saveCompany when Save and continue is clicked', async () => {
     const user = userEvent.setup()
     render(<SetupPage />)
-    await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await walkToReview(user)
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
     expect(saveCompany).toHaveBeenCalledOnce()
   })
@@ -69,10 +89,7 @@ describe('SetupPage wizard', () => {
     const user = userEvent.setup()
     saveCompany.mockRejectedValue(new Error('Not authenticated'))
     render(<SetupPage />)
-    await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await walkToReview(user)
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
     expect(screen.getByText('Not authenticated')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()

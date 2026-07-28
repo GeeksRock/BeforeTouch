@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { saveCompany } from './actions'
+import { validateStep } from './validation'
 import type { SetupForm } from './_steps/types'
 import Step1Company from './_steps/Step1Company'
 import Step2Rotation from './_steps/Step2Rotation'
@@ -47,6 +48,12 @@ export default function SetupPage() {
   }
 
   function next() {
+    const missing = validateStep(step, form)
+    if (missing.length > 0) {
+      setError('Please fill in: ' + missing.join(', '))
+      return
+    }
+    setError(null)
     setStep(s => Math.min(s + 1, 4))
   }
 
