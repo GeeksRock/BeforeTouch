@@ -11,6 +11,7 @@ import Step4Review from './_steps/Step4Review'
 export default function SetupPage() {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<SetupForm>({
     name: '',
     rotation_length: '',
@@ -50,13 +51,19 @@ export default function SetupPage() {
   }
 
   function back() {
+    setError(null)
     setStep(s => Math.max(s - 1, 1))
   }
 
   async function handleSubmit() {
     setSubmitting(true)
-    await saveCompany(form)
-    setSubmitting(false)
+    setError(null)
+    try {
+      await saveCompany(form)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setSubmitting(false)
+    }
   }
 
   const stepProps = {
@@ -85,6 +92,12 @@ export default function SetupPage() {
           </span>
         ))}
       </div>
+
+      {error && (
+        <p role="alert" className="mb-6 rounded border border-red-300 bg-red-50 p-3 text-red-800">
+          {error}
+        </p>
+      )}
 
       {step === 1 && <Step1Company {...stepProps} onNext={next} />}
       {step === 2 && <Step2Rotation {...stepProps} onNext={next} />}
