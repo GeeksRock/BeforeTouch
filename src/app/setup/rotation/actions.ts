@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 interface RotationEntry {
   employee_id: string
@@ -18,9 +18,19 @@ interface RotationForm {
 }
 
 export async function saveRotation(data: RotationForm) {
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from('rotation_group')
+    .select('id')
+    .eq('company_id', data.company_id)
+    .eq('name', 'Default')
+    .single()
+  if (groupError) throw new Error(groupError.message)
+  if (!group) throw new Error('Default rotation group not found')
+
   const records = [
     {
       company_id: data.company_id,
+      rotation_group_id: group.id,
       on_call_employee_id: data.current.employee_id,
       backup_employee_id: data.backup_current?.employee_id ?? null,
       start_datetime: data.current.start_datetime,
@@ -28,6 +38,7 @@ export async function saveRotation(data: RotationForm) {
     },
     {
       company_id: data.company_id,
+      rotation_group_id: group.id,
       on_call_employee_id: data.next.employee_id,
       backup_employee_id: data.backup_next?.employee_id ?? null,
       start_datetime: data.next.start_datetime,
@@ -35,7 +46,18 @@ export async function saveRotation(data: RotationForm) {
     },
   ]
 
-  const { error } = await supabase.from('rotation').insert(records)
+  const { error } = await supabaseAdmin.from('rotation').insert(records)
   if (error) throw new Error(error.message)
   redirect('/dashboard')
+}
+
+export async function getDefaultRotationGroupHasBackup(companyId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('rotation_group')
+    .select('has_backup')
+    .eq('company_id', companyId)
+    .eq('name', 'Default')
+    .single()
+  if (error) throw new Error(error.message)
+  return data.has_backup
 }

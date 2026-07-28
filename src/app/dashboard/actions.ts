@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email'
 
 interface Rotation {
@@ -8,6 +9,7 @@ interface Rotation {
   on_call_employee_id: string
   start_datetime: string
   end_datetime: string
+  rotation_group_id: string
 }
 
 interface VolunteerOffer {
@@ -73,7 +75,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
 
   const { data: rotation, error: rotError } = await client
     .from('rotation')
-    .select('id, on_call_employee_id, start_datetime, end_datetime')
+    .select('id, on_call_employee_id, start_datetime, end_datetime, rotation_group_id')
     .eq('company_id', employee.company_id)
     .lte('start_datetime', new Date().toISOString())
     .gte('end_datetime', new Date().toISOString())
@@ -84,63 +86,63 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
   if (!rotation) return { data: null, error: 'No active rotation found' }
 
   if (employee.is_admin) {
-    const [offersResult, compResult] = await Promise.all([
+    const [offersResult, rgResult] = await Promise.all([
       client
         .from('volunteer_offer')
         .select('id, volunteer_employee_id, offer_type, status, employee(name)')
         .eq('rotation_id', rotation.id),
-      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
+      supabaseAdmin.from('rotation_group').select('approval_approver').eq('id', rotation.rotation_group_id).single(),
     ])
     if (offersResult.error) return { data: null, error: offersResult.error.message }
-    if (compResult.error) return { data: null, error: compResult.error.message }
+    if (rgResult.error) return { data: null, error: rgResult.error.message }
 
     return {
       data: {
         type: 'admin',
         rotation,
         volunteers: mapOffers(offersResult.data ?? []),
-        approval_approver: compResult.data.approval_approver,
+        approval_approver: rgResult.data.approval_approver,
       },
       error: null,
     }
   }
 
   if (rotation.on_call_employee_id === employee.id) {
-    const [offersResult, compResult] = await Promise.all([
+    const [offersResult, rgResult] = await Promise.all([
       client
         .from('volunteer_offer')
         .select('id, volunteer_employee_id, offer_type, status, employee(name)')
         .eq('rotation_id', rotation.id),
-      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
+      supabaseAdmin.from('rotation_group').select('approval_approver').eq('id', rotation.rotation_group_id).single(),
     ])
     if (offersResult.error) return { data: null, error: offersResult.error.message }
-    if (compResult.error) return { data: null, error: compResult.error.message }
+    if (rgResult.error) return { data: null, error: rgResult.error.message }
 
     return {
       data: {
         type: 'on-call',
         rotation,
         volunteers: mapOffers(offersResult.data ?? []),
-        approval_approver: compResult.data.approval_approver,
+        approval_approver: rgResult.data.approval_approver,
       },
       error: null,
     }
   }
 
-  const [onCallEmpResult, compResult] = await Promise.all([
+  const [onCallEmpResult, rgResult] = await Promise.all([
     client.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
-    client.from('company').select('allowed_volunteer_types, approval_approver').eq('id', employee.company_id).single(),
+    supabaseAdmin.from('rotation_group').select('allowed_volunteer_types, approval_approver').eq('id', rotation.rotation_group_id).single(),
   ])
   if (onCallEmpResult.error) return { data: null, error: onCallEmpResult.error.message }
-  if (compResult.error) return { data: null, error: compResult.error.message }
+  if (rgResult.error) return { data: null, error: rgResult.error.message }
 
   return {
     data: {
       type: 'not-on-call',
       onCallEmployeeName: onCallEmpResult.data.name,
       rotation,
-      allowedVolunteerTypes: compResult.data.allowed_volunteer_types,
-      approval_approver: compResult.data.approval_approver,
+      allowedVolunteerTypes: rgResult.data.allowed_volunteer_types,
+      approval_approver: rgResult.data.approval_approver,
     },
     error: null,
   }
@@ -176,11 +178,17 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
   if (error) return { error: error.message }
 
   try {
-    const [compResult, rotResult] = await Promise.all([
-      client.from('company').select('approval_approver').eq('id', employee.company_id).single(),
-      client.from('rotation').select('on_call_employee_id').eq('id', data.rotation_id).single(),
-    ])
-    const approvalApprover = compResult.data?.approval_approver
+    const rotResult = await client
+      .from('rotation')
+      .select('on_call_employee_id, rotation_group_id')
+      .eq('id', data.rotation_id)
+      .single()
+    const rgResult = await supabaseAdmin
+      .from('rotation_group')
+      .select('approval_approver')
+      .eq('id', rotResult.data?.rotation_group_id)
+      .single()
+    const approvalApprover = rgResult.data?.approval_approver
     const onCallEmployeeId = rotResult.data?.on_call_employee_id
     let contactResult: { data: { email: string } | null } | undefined
     if (approvalApprover === 'on_call') {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { redirect } from 'next/navigation'
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(),
   },
 }))
@@ -12,12 +12,14 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
 }))
 
-const { saveRotation } = await import('./actions')
+const { saveRotation, getDefaultRotationGroupHasBackup } = await import('./actions')
 
 const insertMock = vi.fn()
+const groupSingleMock = vi.fn()
 
 describe('saveRotation', () => {
   const companyId = 'company-123'
+  const groupId = 'group-1'
   const current = {
     employee_id: 'emp-1',
     start_datetime: '2024-01-01T09:00',
@@ -41,44 +43,90 @@ describe('saveRotation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(supabase.from).mockReturnValue({ insert: insertMock } as never)
+    groupSingleMock.mockResolvedValue({ data: { id: groupId }, error: null })
+    insertMock.mockResolvedValue({ error: null })
+    vi.mocked(supabaseAdmin.from).mockImplementation((table: string) => {
+      if (table === 'rotation_group') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({ single: groupSingleMock }),
+            }),
+          }),
+        } as never
+      }
+      return { insert: insertMock } as never
+    })
   })
 
-  it('inserts two records when no backup fields provided', async () => {
-    insertMock.mockResolvedValue({ error: null })
-
+  it('inserts two records with rotation_group_id when no backup fields provided', async () => {
     await saveRotation({ company_id: companyId, current, next })
 
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('rotation')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('rotation')
     expect(insertMock).toHaveBeenCalledWith([
-      { company_id: companyId, on_call_employee_id: current.employee_id, backup_employee_id: null, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
-      { company_id: companyId, on_call_employee_id: next.employee_id, backup_employee_id: null, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
+      { company_id: companyId, rotation_group_id: groupId, on_call_employee_id: current.employee_id, backup_employee_id: null, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
+      { company_id: companyId, rotation_group_id: groupId, on_call_employee_id: next.employee_id, backup_employee_id: null, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
     ])
   })
 
-  it('inserts two records when backup fields are provided', async () => {
-    insertMock.mockResolvedValue({ error: null })
-
+  it('inserts two records with rotation_group_id when backup fields are provided', async () => {
     await saveRotation({ company_id: companyId, current, next, backup_current, backup_next })
 
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('rotation')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('rotation')
     expect(insertMock).toHaveBeenCalledWith([
-      { company_id: companyId, on_call_employee_id: current.employee_id, backup_employee_id: backup_current.employee_id, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
-      { company_id: companyId, on_call_employee_id: next.employee_id, backup_employee_id: backup_next.employee_id, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
+      { company_id: companyId, rotation_group_id: groupId, on_call_employee_id: current.employee_id, backup_employee_id: backup_current.employee_id, start_datetime: current.start_datetime, end_datetime: current.end_datetime },
+      { company_id: companyId, rotation_group_id: groupId, on_call_employee_id: next.employee_id, backup_employee_id: backup_next.employee_id, start_datetime: next.start_datetime, end_datetime: next.end_datetime },
     ])
   })
 
-  it('throws when supabase returns an error', async () => {
+  it('throws when the rotation_group lookup errors', async () => {
+    groupSingleMock.mockResolvedValue({ data: null, error: { message: 'lookup failed' } })
+
+    await expect(saveRotation({ company_id: companyId, current, next })).rejects.toThrow('lookup failed')
+  })
+
+  it('throws when no Default rotation group exists, without falling back to null', async () => {
+    groupSingleMock.mockResolvedValue({ data: null, error: null })
+
+    await expect(saveRotation({ company_id: companyId, current, next })).rejects.toThrow('Default rotation group not found')
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when supabaseAdmin insert returns an error', async () => {
     insertMock.mockResolvedValue({ error: { message: 'insert failed' } })
 
     await expect(saveRotation({ company_id: companyId, current, next })).rejects.toThrow('insert failed')
   })
 
   it('redirects to /dashboard on success', async () => {
-    insertMock.mockResolvedValue({ error: null })
-
     await saveRotation({ company_id: companyId, current, next })
 
     expect(vi.mocked(redirect)).toHaveBeenCalledWith('/dashboard')
+  })
+})
+
+describe('getDefaultRotationGroupHasBackup', () => {
+  const companyId = 'company-123'
+  const singleMock = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const eqMock = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: singleMock }) })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ select: vi.fn().mockReturnValue({ eq: eqMock }) } as never)
+  })
+
+  it('returns has_backup from the Default rotation_group via supabaseAdmin', async () => {
+    singleMock.mockResolvedValue({ data: { has_backup: true }, error: null })
+
+    const result = await getDefaultRotationGroupHasBackup(companyId)
+
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('rotation_group')
+    expect(result).toBe(true)
+  })
+
+  it('throws when the query fails', async () => {
+    singleMock.mockResolvedValue({ data: null, error: { message: 'lookup failed' } })
+
+    await expect(getDefaultRotationGroupHasBackup(companyId)).rejects.toThrow('lookup failed')
   })
 })

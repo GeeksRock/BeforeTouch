@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { supabase } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email'
 
 vi.mock('@/lib/supabase', () => ({
@@ -11,6 +12,12 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
 }))
 
 vi.mock('@/lib/email', () => ({
@@ -47,6 +54,7 @@ const rotation = {
   on_call_employee_id: 'emp-1',
   start_datetime: '2024-01-01T09:00',
   end_datetime: '2024-01-08T09:00',
+  rotation_group_id: 'rg-1',
 }
 const volunteers = [
   {
@@ -86,7 +94,8 @@ describe('fetchDashboard', () => {
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)   // volunteer_offer (parallel)
-        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // company (parallel)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group (parallel)
     })
 
     it('returns type on-call', async () => {
@@ -138,7 +147,8 @@ describe('fetchDashboard', () => {
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(null) as never)   // volunteer_offer
-        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // company
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group
     })
 
     it('returns an empty volunteers array', async () => {
@@ -155,7 +165,8 @@ describe('fetchDashboard', () => {
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(otherRotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(onCallEmployee) as never)
-        .mockReturnValueOnce(makeQueryBuilder(company) as never)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder(company) as never)  // rotation_group
     })
 
     it('returns type not-on-call', async () => {
@@ -187,9 +198,9 @@ describe('fetchDashboard', () => {
       expect(result.data.approval_approver).toBe('on_call')
     })
 
-    it('queries the company table', async () => {
+    it('queries the rotation_group table via supabaseAdmin', async () => {
       await fetchDashboard()
-      expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('company')
+      expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('rotation_group')
     })
   })
 
@@ -200,7 +211,8 @@ describe('fetchDashboard', () => {
         .mockReturnValueOnce(makeQueryBuilder(adminEmployee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)   // volunteer_offer (parallel)
-        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // company (parallel)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group (parallel)
     })
 
     it('returns type admin', async () => {
@@ -266,9 +278,22 @@ describe('fetchDashboard', () => {
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(null, { message: 'offers query failed' }) as never)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)
       const result = await fetchDashboard()
       expect(result.error).toBe('offers query failed')
+    })
+
+    it('returns an error when the rotation_group query fails for an on-call user', async () => {
+      mockAuthAs(userId)
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(makeQueryBuilder(employee) as never)
+        .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
+        .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder(null, { message: 'rotation_group query failed' }) as never)
+      const result = await fetchDashboard()
+      expect(result.error).toBe('rotation_group query failed')
     })
   })
 })
@@ -283,9 +308,10 @@ describe('submitVolunteerOffer', () => {
     vi.mocked(supabase.from)
       .mockReturnValueOnce(makeQueryBuilder(employee) as never)  // employee lookup
       .mockReturnValueOnce({ insert: insertMock } as never)       // volunteer_offer insert
-      .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // company (notification)
-      .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2' }) as never)  // rotation (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)  // rotation (notification)
       .mockReturnValueOnce(makeQueryBuilder({ email: 'oncall@example.com' }) as never)   // on_call employee (notification)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group (notification)
   })
 
   it('inserts a volunteer offer with offer_type and no datetimes when not provided', async () => {
@@ -374,9 +400,10 @@ describe('submitVolunteerOffer', () => {
       vi.mocked(supabase.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce({ insert: insertMock } as never)
-        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'manager' }) as never)
-        .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)
         .mockReturnValueOnce(makeQueryBuilder({ email: 'manager@example.com' }) as never)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'manager' }) as never)
       await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'manager@example.com',

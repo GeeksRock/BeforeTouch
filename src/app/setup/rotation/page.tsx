@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { saveRotation } from './actions'
+import { saveRotation, getDefaultRotationGroupHasBackup } from './actions'
 import { isValidUuid } from '@/lib/validation'
 
 interface Employee {
@@ -112,13 +112,12 @@ function RotationForm() {
 
   useEffect(() => {
     async function load() {
-      const [empResult, compResult] = await Promise.all([
+      const [empResult, hasBackup] = await Promise.all([
         supabase.from('employee').select('id, name').eq('company_id', companyId),
-        supabase.from('company').select('has_backup').eq('id', companyId).single(),
+        getDefaultRotationGroupHasBackup(companyId),
       ])
-      console.log(empResult.data, empResult.error)
       if (empResult.data) setEmployees(empResult.data)
-      if (compResult.data) setHasBackup(compResult.data.has_backup)
+      setHasBackup(hasBackup)
       setLoading(false)
     }
     if (companyId) load()
