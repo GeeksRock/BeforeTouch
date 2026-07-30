@@ -309,7 +309,7 @@ describe('submitVolunteerOffer', () => {
       .mockReturnValueOnce(makeQueryBuilder(employee) as never)  // employee lookup
       .mockReturnValueOnce({ insert: insertMock } as never)       // volunteer_offer insert
       .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)  // rotation (notification)
-      .mockReturnValueOnce(makeQueryBuilder({ email: 'oncall@example.com' }) as never)   // on_call employee (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ contact: 'oncall@example.com' }) as never)   // on_call employee (notification)
     vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group (notification)
   })
@@ -401,7 +401,7 @@ describe('submitVolunteerOffer', () => {
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce({ insert: insertMock } as never)
         .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)
-        .mockReturnValueOnce(makeQueryBuilder({ email: 'manager@example.com' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ contact: 'manager@example.com' }) as never)
       vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'manager' }) as never)
       await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })

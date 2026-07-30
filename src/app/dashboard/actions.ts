@@ -190,20 +190,20 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
       .single()
     const approvalApprover = rgResult.data?.approval_approver
     const onCallEmployeeId = rotResult.data?.on_call_employee_id
-    let contactResult: { data: { email: string } | null } | undefined
+    let contactResult: { data: { contact: string } | null } | undefined
     if (approvalApprover === 'on_call') {
-      contactResult = await client.from('employee').select('email').eq('id', onCallEmployeeId).single()
+      contactResult = await client.from('employee').select('contact').eq('id', onCallEmployeeId).single()
     } else if (approvalApprover === 'manager') {
       contactResult = await client
         .from('employee')
-        .select('email')
+        .select('contact')
         .eq('company_id', employee.company_id)
         .eq('is_admin', true)
         .single()
     }
-    if (contactResult?.data?.email) {
+    if (contactResult?.data?.contact) {
       await sendEmail({
-        to: contactResult.data.email,
+        to: contactResult.data.contact,
         subject: 'New volunteer offer for your review',
         html: `${employee.name} has offered to cover ${data.offer_type}. Log in to BeforeTouch to review it.`,
       })
