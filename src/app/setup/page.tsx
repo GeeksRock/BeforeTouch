@@ -5,6 +5,7 @@ import { saveCompany } from './actions'
 
 export default function SetupPage() {
   const [name, setName] = useState('')
+  const [ownerName, setOwnerName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -13,7 +14,7 @@ export default function SetupPage() {
     setSubmitting(true)
     setError(null)
     try {
-      await saveCompany({ name })
+      await saveCompany({ name, ownerName })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setSubmitting(false)
@@ -37,6 +38,17 @@ export default function SetupPage() {
             name="name"
             value={name}
             onChange={e => setName(e.target.value)}
+            className="border p-3 rounded bg-white text-gray-900"
+            required
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          Your name
+          <input
+            name="ownerName"
+            value={ownerName}
+            onChange={e => setOwnerName(e.target.value)}
             className="border p-3 rounded bg-white text-gray-900"
             required
           />

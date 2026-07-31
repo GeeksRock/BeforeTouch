@@ -21,18 +21,20 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('SetupPage', () => {
-  it('renders the company name field', () => {
+  it('renders the company name and owner name fields', () => {
     render(<SetupPage />)
     expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument()
     expect(screen.getByLabelText('Company name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Your name')).toBeInTheDocument()
   })
 
-  it('calls saveCompany with the entered name', async () => {
+  it('calls saveCompany with the company name and the owner name', async () => {
     const user = userEvent.setup()
     render(<SetupPage />)
     await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
+    await user.type(screen.getByLabelText('Your name'), 'Michelle E')
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
-    expect(saveCompanyMock).toHaveBeenCalledWith({ name: 'Acme HVAC' })
+    expect(saveCompanyMock).toHaveBeenCalledWith({ name: 'Acme HVAC', ownerName: 'Michelle E' })
   })
 
   it('shows the error and re-enables the button when saveCompany fails', async () => {
@@ -40,6 +42,7 @@ describe('SetupPage', () => {
     const user = userEvent.setup()
     render(<SetupPage />)
     await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
+    await user.type(screen.getByLabelText('Your name'), 'Michelle E')
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Not authenticated')
