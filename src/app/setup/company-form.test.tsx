@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as matchers from '@testing-library/jest-dom/matchers'
-import SetupPage from './page'
+import CompanyForm from './company-form'
 import { saveCompany } from './actions'
 
 expect.extend(matchers)
@@ -20,9 +20,9 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-describe('SetupPage', () => {
+describe('CompanyForm', () => {
   it('renders the company name and owner name fields', () => {
-    render(<SetupPage />)
+    render(<CompanyForm />)
     expect(screen.getByRole('heading', { name: 'Set up your company' })).toBeInTheDocument()
     expect(screen.getByLabelText('Company name')).toBeInTheDocument()
     expect(screen.getByLabelText('Your name')).toBeInTheDocument()
@@ -30,7 +30,7 @@ describe('SetupPage', () => {
 
   it('calls saveCompany with the company name and the owner name', async () => {
     const user = userEvent.setup()
-    render(<SetupPage />)
+    render(<CompanyForm />)
     await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
     await user.type(screen.getByLabelText('Your name'), 'Michelle E')
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
@@ -40,7 +40,7 @@ describe('SetupPage', () => {
   it('shows the error and re-enables the button when saveCompany fails', async () => {
     saveCompanyMock.mockRejectedValue(new Error('Not authenticated'))
     const user = userEvent.setup()
-    render(<SetupPage />)
+    render(<CompanyForm />)
     await user.type(screen.getByLabelText('Company name'), 'Acme HVAC')
     await user.type(screen.getByLabelText('Your name'), 'Michelle E')
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))

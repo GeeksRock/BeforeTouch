@@ -35,5 +35,5 @@ export async function saveCompany(data: CompanyForm) {
     }])
   if (employeeError) throw new Error(employeeError.message)
 
-  redirect(`/setup/employees?company_id=${company.id}`)
+  redirect('/dashboard/admin')
 }
