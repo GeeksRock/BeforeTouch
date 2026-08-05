@@ -19,6 +19,7 @@ export default function SettingsPage() {
   return (
     <main className="max-w-lg mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Rotation groups</h1>
+      <Link href="/settings/new" className="underline mb-4 inline-block">Add group</Link>
       {loadError && <p className="text-red-600 mb-4">{loadError}</p>}
       {!loadError && groups.length === 0 && (
         <p className="text-gray-400 mb-4">No rotation groups yet.</p>
