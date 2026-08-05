@@ -83,7 +83,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
     .limit(1)
     .maybeSingle()
   if (rotError) return { data: null, error: rotError.message }
-  if (!rotation) return { data: null, error: 'No active rotation found' }
+  if (!rotation) return { data: null, error: null }
 
   if (employee.is_admin) {
     const [offersResult, rgResult] = await Promise.all([

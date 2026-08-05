@@ -86,6 +86,18 @@ describe('fetchDashboard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
+  describe('when there is no active rotation', () => {
+    beforeEach(() => {
+      mockAuthAs(userId)
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(makeQueryBuilder(employee) as never)
+        .mockReturnValueOnce(makeQueryBuilder(null) as never)
+    })
+    it('returns null data without an error', async () => {
+      const result = await fetchDashboard()
+      expect(result).toEqual({ data: null, error: null })
+    })
+  })
 
   describe('when the current user is on call', () => {
     beforeEach(() => {

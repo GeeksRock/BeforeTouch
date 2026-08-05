@@ -365,7 +365,12 @@ export default function DashboardPage() {
 
   if (loading) return <main className="max-w-lg mx-auto p-8">Loading…</main>
   if (error) return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
-  if (!data) return null
+  if (!data) return (
+    <main className="max-w-lg mx-auto p-8">
+      <h1 className="text-2xl font-bold mb-6">Your on-call rotation</h1>
+      <p className="text-gray-400">No rotation is scheduled right now.</p>
+    </main>
+  )
 
   if (data.type === 'on-call') return <OnCallView data={data} onRefresh={reload} />
   if (data.type === 'admin') return <AdminView data={data} onRefresh={reload} />
