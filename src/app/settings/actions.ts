@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface CompanyForm {
   name: string
@@ -78,7 +79,7 @@ export async function fetchRotationGroups(): Promise<{ data: RotationGroupSummar
     .maybeSingle()
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
-  const { data: groups, error: groupError } = await client
+  const { data: groups, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id, name')
     .eq('company_id', employee.company_id)
@@ -107,7 +108,7 @@ export async function createRotationGroup(data: RotationGroupForm): Promise<{ er
     .maybeSingle()
   if (empError) return { error: empError.message }
   if (!employee) return { error: 'Employee record not found' }
-  const { error: insertError } = await client
+  const { error: insertError } = await supabaseAdmin
     .from('rotation_group')
     .insert([{ ...data, company_id: employee.company_id }])
   if (insertError) return { error: insertError.message }

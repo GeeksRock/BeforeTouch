@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { supabase } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -10,6 +11,11 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
+}))
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
 }))
 
 const { fetchCompany, updateCompany, fetchRotationGroups, createRotationGroup } = await import('./actions')
@@ -179,16 +185,17 @@ describe('updateCompany', () => {
 
 describe('fetchRotationGroups', () => {
   it('returns the rotation groups for the caller company', async () => {
-    const from = vi.fn()
-      .mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
-      .mockReturnValueOnce(makeQueryBuilder([{ id: 'rg-1', name: 'Night shift' }]) as never)
+    const from = vi.fn().mockReturnValue(makeQueryBuilder(employeeRow) as never)
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }) },
       from,
     } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValue(
+      makeQueryBuilder([{ id: 'rg-1', name: 'Night shift' }]) as never
+    )
     const result = await fetchRotationGroups()
-    expect(from).toHaveBeenNthCalledWith(1, 'employee')
-    expect(from).toHaveBeenNthCalledWith(2, 'rotation_group')
+    expect(from).toHaveBeenCalledWith('employee')
+    expect(supabaseAdmin.from).toHaveBeenCalledWith('rotation_group')
     expect(result).toEqual({ data: [{ id: 'rg-1', name: 'Night shift' }], error: null })
   })
 })
@@ -205,15 +212,14 @@ describe('createRotationGroup', () => {
   }
   it('inserts the group scoped to the caller company', async () => {
     const insertBuilder = makeQueryBuilder(null)
-    const from = vi.fn()
-      .mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
-      .mockReturnValueOnce(insertBuilder as never)
+    const from = vi.fn().mockReturnValue(makeQueryBuilder(employeeRow) as never)
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }) },
       from,
     } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValue(insertBuilder as never)
     const result = await createRotationGroup(groupForm)
-    expect(from).toHaveBeenNthCalledWith(2, 'rotation_group')
+    expect(supabaseAdmin.from).toHaveBeenCalledWith('rotation_group')
     expect(insertBuilder.insert).toHaveBeenCalledWith([{ ...groupForm, company_id: 'co-1' }])
     expect(result).toEqual({ error: null })
   })
