@@ -55,7 +55,7 @@ export async function updateEmployee(
       .limit(1)
       .maybeSingle()
     if (!caller) throw new Error('Employee record not found')
-    if (caller.id === id) throw new Error('You cannot deactivate yourself')
+    if (caller.id === id) return { error: 'You cannot deactivate yourself' }
     const { data: admins } = await supabaseAdmin
       .from('employee')
       .select('id')
@@ -63,7 +63,7 @@ export async function updateEmployee(
       .eq('is_admin', true)
       .eq('is_active', true)
     if (admins && admins.length === 1 && admins[0].id === id) {
-      throw new Error('Cannot deactivate the last active admin')
+      return { error: 'Cannot deactivate the last active admin' }
     }
   }
   const { error } = await supabaseAdmin.from('employee').update(updates).eq('id', id)

@@ -130,16 +130,16 @@ describe('updateEmployee', () => {
 
     expect(result).toEqual({ error: 'update failed' })
   })
-  it('throws when an admin deactivates themself', async () => {
+  it('returns an error when an admin deactivates themself', async () => {
     mockReads()
-    await expect(updateEmployee('emp-caller', { is_active: false }))
-      .rejects.toThrow('You cannot deactivate yourself')
+    const result = await updateEmployee('emp-caller', { is_active: false })
+    expect(result).toEqual({ error: 'You cannot deactivate yourself' })
     expect(updateMock).not.toHaveBeenCalled()
   })
-  it('throws when deactivating the last active admin', async () => {
+  it('returns an error when deactivating the last active admin', async () => {
     mockReads(callerRow, [{ id: 'emp-1' }])
-    await expect(updateEmployee('emp-1', { is_active: false }))
-      .rejects.toThrow('Cannot deactivate the last active admin')
+    const result = await updateEmployee('emp-1', { is_active: false })
+    expect(result).toEqual({ error: 'Cannot deactivate the last active admin' })
     expect(updateMock).not.toHaveBeenCalled()
   })
   it('allows deactivating an admin when another active admin remains', async () => {
