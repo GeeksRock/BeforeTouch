@@ -85,3 +85,31 @@ export async function fetchRotationGroups(): Promise<{ data: RotationGroupSummar
   if (groupError) return { data: null, error: groupError.message }
   return { data: groups as RotationGroupSummary[], error: null }
 }
+
+export interface RotationGroupForm {
+  name: string
+  rotation_length: string
+  rotation_start_day: string
+  rotation_start_time: string
+  has_backup: boolean
+  allowed_volunteer_types: string[]
+  approval_approver: 'on_call' | 'manager'
+}
+export async function createRotationGroup(data: RotationGroupForm): Promise<{ error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: employee, error: empError } = await client
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (empError) return { error: empError.message }
+  if (!employee) return { error: 'Employee record not found' }
+  const { error: insertError } = await client
+    .from('rotation_group')
+    .insert([{ ...data, company_id: employee.company_id }])
+  if (insertError) return { error: insertError.message }
+  return { error: null }
+}

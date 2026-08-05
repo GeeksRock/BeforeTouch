@@ -12,7 +12,7 @@ vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
 }))
 
-const { fetchCompany, updateCompany, fetchRotationGroups } = await import('./actions')
+const { fetchCompany, updateCompany, fetchRotationGroups, createRotationGroup } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -26,6 +26,7 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
   builder.select = vi.fn().mockReturnValue(builder)
   builder.limit = vi.fn().mockReturnValue(builder)
   builder.update = vi.fn().mockReturnValue(builder)
+  builder.insert = vi.fn().mockReturnValue(builder)
   return builder
 }
 
@@ -189,5 +190,31 @@ describe('fetchRotationGroups', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'employee')
     expect(from).toHaveBeenNthCalledWith(2, 'rotation_group')
     expect(result).toEqual({ data: [{ id: 'rg-1', name: 'Night shift' }], error: null })
+  })
+})
+
+describe('createRotationGroup', () => {
+  const groupForm = {
+    name: 'Night shift',
+    rotation_length: '1_week',
+    rotation_start_day: 'Monday',
+    rotation_start_time: '09:00',
+    has_backup: false,
+    allowed_volunteer_types: ['full_rotation'],
+    approval_approver: 'on_call' as const,
+  }
+  it('inserts the group scoped to the caller company', async () => {
+    const insertBuilder = makeQueryBuilder(null)
+    const from = vi.fn()
+      .mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+      .mockReturnValueOnce(insertBuilder as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }) },
+      from,
+    } as never)
+    const result = await createRotationGroup(groupForm)
+    expect(from).toHaveBeenNthCalledWith(2, 'rotation_group')
+    expect(insertBuilder.insert).toHaveBeenCalledWith([{ ...groupForm, company_id: 'co-1' }])
+    expect(result).toEqual({ error: null })
   })
 })
