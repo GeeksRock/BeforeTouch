@@ -5,8 +5,7 @@ export interface NavLink {
 
 const adminLinks: NavLink[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/setup/employees', label: 'Employees' },
-  { href: '/setup/rotation', label: 'Rotation' },
+  { href: '/dashboard/admin/employees', label: 'Employees' },
   { href: '/settings', label: 'Settings' },
   { href: '/profile', label: 'Profile' },
 ]

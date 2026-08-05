@@ -90,12 +90,9 @@ describe('getNavLinks', () => {
     })
 
     it('includes Employees', () => {
-      expect(links.some(l => l.href === '/setup/employees')).toBe(true)
+      expect(links.some(l => l.href === '/dashboard/admin/employees')).toBe(true)
     })
 
-    it('includes Rotation', () => {
-      expect(links.some(l => l.href === '/setup/rotation')).toBe(true)
-    })
 
     it('includes Settings', () => {
       expect(links.some(l => l.href === '/settings')).toBe(true)
@@ -105,8 +102,8 @@ describe('getNavLinks', () => {
       expect(links.some(l => l.href === '/profile')).toBe(true)
     })
 
-    it('returns exactly 5 links', () => {
-      expect(links).toHaveLength(5)
+    it('returns exactly 4 links', () => {
+      expect(links).toHaveLength(4)
     })
   })
 
@@ -126,12 +123,9 @@ describe('getNavLinks', () => {
     })
 
     it('does not include Employees', () => {
-      expect(links.some(l => l.href === '/setup/employees')).toBe(false)
+      expect(links.some(l => l.href === '/dashboard/admin/employees')).toBe(false)
     })
 
-    it('does not include Rotation', () => {
-      expect(links.some(l => l.href === '/setup/rotation')).toBe(false)
-    })
 
     it('returns exactly 2 links', () => {
       expect(links).toHaveLength(2)
