@@ -61,8 +61,7 @@ export default function NewRotationGroupPage() {
             <option value="">Select...</option>
             <option value="1_week">1 week</option>
             <option value="2_weeks">2 weeks</option>
-            <option value="monthly">Monthly</option>
-            <option value="custom">Custom</option>
+            <option value="4_weeks">4 weeks</option>
           </select>
         </label>
         <label className="flex flex-col gap-1">
