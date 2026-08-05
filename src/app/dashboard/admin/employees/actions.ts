@@ -44,6 +44,28 @@ export async function updateEmployee(
   id: string,
   updates: EmployeeUpdates,
 ): Promise<{ error: string | null }> {
+  if (updates.is_active === false) {
+    const client = await createSupabaseServerClient()
+    const { data: { user } } = await client.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    const { data: caller } = await client
+      .from('employee')
+      .select('id, company_id, is_admin')
+      .eq('auth_user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+    if (!caller) throw new Error('Employee record not found')
+    if (caller.id === id) throw new Error('You cannot deactivate yourself')
+    const { data: admins } = await supabaseAdmin
+      .from('employee')
+      .select('id')
+      .eq('company_id', caller.company_id)
+      .eq('is_admin', true)
+      .eq('is_active', true)
+    if (admins && admins.length === 1 && admins[0].id === id) {
+      throw new Error('Cannot deactivate the last active admin')
+    }
+  }
   const { error } = await supabaseAdmin.from('employee').update(updates).eq('id', id)
   if (error) return { error: error.message }
   return { error: null }

@@ -83,6 +83,28 @@ describe('listEmployees', () => {
 describe('updateEmployee', () => {
   const eqMock = vi.fn()
   const updateMock = vi.fn()
+  const callerRow = { id: 'emp-caller', company_id: 'co-1', is_admin: true }
+  function mockReads(caller = callerRow, admins = [{ id: 'emp-caller' }, { id: 'emp-1' }]) {
+    const callerBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: caller, error: null }),
+    }
+    const adminBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
+        Promise.resolve({ data: admins, error: null }).then(res, rej),
+    }
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-caller' } } }) },
+      from: vi.fn().mockReturnValue(callerBuilder),
+    } as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(adminBuilder as never)
+      .mockReturnValue({ update: updateMock } as never)
+  }
 
   beforeEach(() => {
     vi.resetAllMocks()
@@ -104,9 +126,34 @@ describe('updateEmployee', () => {
   it('returns the error when the update fails', async () => {
     eqMock.mockResolvedValue({ error: { message: 'update failed' } })
 
-    const result = await updateEmployee('emp-1', { is_active: false })
+    const result = await updateEmployee('emp-1', { name: 'New Name' })
 
     expect(result).toEqual({ error: 'update failed' })
+  })
+  it('throws when an admin deactivates themself', async () => {
+    mockReads()
+    await expect(updateEmployee('emp-caller', { is_active: false }))
+      .rejects.toThrow('You cannot deactivate yourself')
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+  it('throws when deactivating the last active admin', async () => {
+    mockReads(callerRow, [{ id: 'emp-1' }])
+    await expect(updateEmployee('emp-1', { is_active: false }))
+      .rejects.toThrow('Cannot deactivate the last active admin')
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+  it('allows deactivating an admin when another active admin remains', async () => {
+    mockReads()
+    eqMock.mockResolvedValue({ error: null })
+    const result = await updateEmployee('emp-1', { is_active: false })
+    expect(updateMock).toHaveBeenCalledWith({ is_active: false })
+    expect(result).toEqual({ error: null })
+  })
+  it('does not run the guards for updates that do not deactivate', async () => {
+    eqMock.mockResolvedValue({ error: null })
+    const result = await updateEmployee('emp-1', { is_active: true })
+    expect(updateMock).toHaveBeenCalledWith({ is_active: true })
+    expect(result).toEqual({ error: null })
   })
 })
 
