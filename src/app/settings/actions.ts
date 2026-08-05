@@ -60,3 +60,28 @@ export async function updateCompany(data: CompanyForm): Promise<{ error: string 
 
   return { error: null }
 }
+
+export interface RotationGroupSummary {
+  id: string
+  name: string
+}
+
+export async function fetchRotationGroups(): Promise<{ data: RotationGroupSummary[] | null; error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { data: null, error: 'Not authenticated' }
+  const { data: employee, error: empError } = await client
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (empError) return { data: null, error: empError.message }
+  if (!employee) return { data: null, error: 'Employee record not found' }
+  const { data: groups, error: groupError } = await client
+    .from('rotation_group')
+    .select('id, name')
+    .eq('company_id', employee.company_id)
+  if (groupError) return { data: null, error: groupError.message }
+  return { data: groups as RotationGroupSummary[], error: null }
+}

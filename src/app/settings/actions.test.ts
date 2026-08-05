@@ -12,7 +12,7 @@ vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
 }))
 
-const { fetchCompany, updateCompany } = await import('./actions')
+const { fetchCompany, updateCompany, fetchRotationGroups } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -173,5 +173,21 @@ describe('updateCompany', () => {
 
     const result = await updateCompany(companyData as never)
     expect(result.error).toBe('update failed')
+  })
+})
+
+describe('fetchRotationGroups', () => {
+  it('returns the rotation groups for the caller company', async () => {
+    const from = vi.fn()
+      .mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+      .mockReturnValueOnce(makeQueryBuilder([{ id: 'rg-1', name: 'Night shift' }]) as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } } }) },
+      from,
+    } as never)
+    const result = await fetchRotationGroups()
+    expect(from).toHaveBeenNthCalledWith(1, 'employee')
+    expect(from).toHaveBeenNthCalledWith(2, 'rotation_group')
+    expect(result).toEqual({ data: [{ id: 'rg-1', name: 'Night shift' }], error: null })
   })
 })
