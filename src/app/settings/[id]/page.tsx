@@ -103,7 +103,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
                   type="button"
                   onClick={() => handleMove(member.employee_id, 'up')}
                   disabled={index === 0 || moving === member.employee_id + 'up'}
-                  className="text-sm px-2 disabled:opacity-30"
+                  className="text-xl font-bold w-11 h-11 flex items-center justify-center rounded hover:bg-gray-800 disabled:opacity-30"
                   aria-label="Move up"
                 >
                   &uarr;
@@ -112,7 +112,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
                   type="button"
                   onClick={() => handleMove(member.employee_id, 'down')}
                   disabled={index === roster.length - 1 || moving === member.employee_id + 'down'}
-                  className="text-sm px-2 disabled:opacity-30"
+                  className="text-xl font-bold w-11 h-11 flex items-center justify-center rounded hover:bg-gray-800 disabled:opacity-30"
                   aria-label="Move down"
                 >
                   &darr;
@@ -120,10 +120,11 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
                 <button
                   type="button"
                   onClick={() => handleRemove(member.employee_id)}
+                  aria-label="Remove"
                   disabled={removing === member.employee_id}
-                  className="text-sm underline disabled:opacity-50"
+                  className="text-xl font-bold w-11 h-11 flex items-center justify-center rounded hover:bg-gray-800 disabled:opacity-50"
                 >
-                  {removing === member.employee_id ? 'Removing\u2026' : 'Remove'}
+                  {removing === member.employee_id ? '\u2026' : '\u00d7'}
                 </button>
               </li>
             ))}
