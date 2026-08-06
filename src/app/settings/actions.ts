@@ -179,3 +179,48 @@ export async function fetchAvailableEmployees(groupId: string): Promise<{ data: 
   const available = (employees as AvailableEmployee[]).filter((e) => !taken.has(e.id))
   return { data: available, error: null }
 }
+
+export async function addRotationGroupMember(groupId: string, employeeId: string): Promise<{ error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: caller, error: callerError } = await client
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (callerError) return { error: callerError.message }
+  if (!caller) return { error: 'Employee record not found' }
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from('rotation_group')
+    .select('id')
+    .eq('id', groupId)
+    .eq('company_id', caller.company_id)
+    .maybeSingle()
+  if (groupError) return { error: groupError.message }
+  if (!group) return { error: 'Rotation group not found' }
+  const { data: target, error: targetError } = await supabaseAdmin
+    .from('employee')
+    .select('id')
+    .eq('id', employeeId)
+    .eq('company_id', caller.company_id)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (targetError) return { error: targetError.message }
+  if (!target) return { error: 'Employee not found' }
+  const { data: last, error: lastError } = await supabaseAdmin
+    .from('employee_rotation_group')
+    .select('position')
+    .eq('rotation_group_id', groupId)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (lastError) return { error: lastError.message }
+  const position = last ? (last as { position: number }).position + 1 : 1
+  const { error: insertError } = await supabaseAdmin
+    .from('employee_rotation_group')
+    .insert([{ rotation_group_id: groupId, employee_id: employeeId, position }])
+  if (insertError) return { error: insertError.message }
+  return { error: null }
+}

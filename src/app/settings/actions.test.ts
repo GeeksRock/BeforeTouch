@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -248,5 +248,64 @@ describe('fetchAvailableEmployees', () => {
       .mockReturnValueOnce(makeQueryBuilder([{ id: 'emp-1', name: 'Ada' }, { id: 'emp-2', name: 'Grace' }]) as never)
     const result = await fetchAvailableEmployees('rg-1')
     expect(result).toEqual({ data: [{ id: 'emp-2', name: 'Grace' }], error: null })
+  })
+})
+
+describe('addRotationGroupMember', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await addRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'Not authenticated' })
+  })
+  it('returns an error when the group is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await addRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'Rotation group not found' })
+  })
+  it('returns an error when the employee is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await addRotationGroupMember('rg-1', 'emp-9')
+    expect(result).toEqual({ error: 'Employee not found' })
+  })
+  it('inserts at position 1 when the group is empty', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const insertBuilder = makeQueryBuilder(null)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null) as never)
+      .mockReturnValueOnce(insertBuilder as never)
+    const result = await addRotationGroupMember('rg-1', 'emp-1')
+    expect(insertBuilder.insert).toHaveBeenCalledWith([{ rotation_group_id: 'rg-1', employee_id: 'emp-1', position: 1 }])
+    expect(result).toEqual({ error: null })
+  })
+  it('appends after the highest existing position', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const insertBuilder = makeQueryBuilder(null)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-2' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder({ position: 7 }) as never)
+      .mockReturnValueOnce(insertBuilder as never)
+    await addRotationGroupMember('rg-1', 'emp-2')
+    expect(insertBuilder.insert).toHaveBeenCalledWith([{ rotation_group_id: 'rg-1', employee_id: 'emp-2', position: 8 }])
+  })
+  it('returns the error message when the insert fails', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null, { message: 'duplicate key' }) as never)
+    const result = await addRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'duplicate key' })
   })
 })
