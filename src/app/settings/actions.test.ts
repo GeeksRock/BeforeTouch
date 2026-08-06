@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -35,6 +35,7 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
   builder.update = vi.fn().mockReturnValue(builder)
   builder.insert = vi.fn().mockReturnValue(builder)
   builder.delete = vi.fn().mockReturnValue(builder)
+  builder.upsert = vi.fn().mockReturnValue(builder)
   return builder
 }
 
@@ -346,5 +347,81 @@ describe('removeRotationGroupMember', () => {
       .mockReturnValueOnce(makeQueryBuilder(null, { message: 'delete failed' }) as never)
     const result = await removeRotationGroupMember('rg-1', 'emp-1')
     expect(result).toEqual({ error: 'delete failed' })
+  })
+})
+describe('moveRotationGroupMember', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await moveRotationGroupMember('rg-1', 'emp-1', 'up')
+    expect(result).toEqual({ error: 'Not authenticated' })
+  })
+  it('returns an error when the group is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-1', 'up')
+    expect(result).toEqual({ error: 'Rotation group not found' })
+  })
+  it('returns an error when the member is not in the group', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([{ employee_id: 'emp-1', position: 1 }]) as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-9', 'up')
+    expect(result).toEqual({ error: 'Member not found in group' })
+  })
+  it('returns an error when moving the first member up', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([
+        { employee_id: 'emp-1', position: 1 },
+        { employee_id: 'emp-2', position: 3 },
+      ]) as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-1', 'up')
+    expect(result).toEqual({ error: 'Already first' })
+  })
+  it('returns an error when moving the last member down', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([
+        { employee_id: 'emp-1', position: 1 },
+        { employee_id: 'emp-2', position: 3 },
+      ]) as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-2', 'down')
+    expect(result).toEqual({ error: 'Already last' })
+  })
+  it('upserts both rows with positions exchanged when moving up', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const upsertBuilder = makeQueryBuilder(null)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([
+        { employee_id: 'emp-1', position: 1 },
+        { employee_id: 'emp-2', position: 3 },
+      ]) as never)
+      .mockReturnValueOnce(upsertBuilder as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-2', 'up')
+    expect(upsertBuilder.upsert).toHaveBeenCalledWith([
+      { rotation_group_id: 'rg-1', employee_id: 'emp-2', position: 1 },
+      { rotation_group_id: 'rg-1', employee_id: 'emp-1', position: 3 },
+    ])
+    expect(result).toEqual({ error: null })
+  })
+  it('returns the error message when the upsert fails', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([
+        { employee_id: 'emp-1', position: 1 },
+        { employee_id: 'emp-2', position: 3 },
+      ]) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null, { message: 'upsert failed' }) as never)
+    const result = await moveRotationGroupMember('rg-1', 'emp-2', 'up')
+    expect(result).toEqual({ error: 'upsert failed' })
   })
 })

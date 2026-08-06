@@ -253,3 +253,46 @@ export async function removeRotationGroupMember(groupId: string, employeeId: str
   if (deleteError) return { error: deleteError.message }
   return { error: null }
 }
+export async function moveRotationGroupMember(groupId: string, employeeId: string, direction: 'up' | 'down'): Promise<{ error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: caller, error: callerError } = await client
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (callerError) return { error: callerError.message }
+  if (!caller) return { error: 'Employee record not found' }
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from('rotation_group')
+    .select('id')
+    .eq('id', groupId)
+    .eq('company_id', caller.company_id)
+    .maybeSingle()
+  if (groupError) return { error: groupError.message }
+  if (!group) return { error: 'Rotation group not found' }
+  const { data: rows, error: rowsError } = await supabaseAdmin
+    .from('employee_rotation_group')
+    .select('employee_id, position')
+    .eq('rotation_group_id', groupId)
+    .order('position', { ascending: true })
+  if (rowsError) return { error: rowsError.message }
+  const members = (rows ?? []) as { employee_id: string; position: number }[]
+  const index = members.findIndex((m) => m.employee_id === employeeId)
+  if (index === -1) return { error: 'Member not found in group' }
+  if (direction === 'up' && index === 0) return { error: 'Already first' }
+  if (direction === 'down' && index === members.length - 1) return { error: 'Already last' }
+  const neighbourIndex = direction === 'up' ? index - 1 : index + 1
+  const member = members[index]
+  const neighbour = members[neighbourIndex]
+  const { error: upsertError } = await supabaseAdmin
+    .from('employee_rotation_group')
+    .upsert([
+      { rotation_group_id: groupId, employee_id: member.employee_id, position: neighbour.position },
+      { rotation_group_id: groupId, employee_id: neighbour.employee_id, position: member.position },
+    ])
+  if (upsertError) return { error: upsertError.message }
+  return { error: null }
+}
