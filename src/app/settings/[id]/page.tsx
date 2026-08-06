@@ -2,7 +2,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember } from '../actions'
+import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember } from '../actions'
 import type { RosterMember, RotationGroupForm, AvailableEmployee } from '../actions'
 import RotationGroupFormFields, { defaultRotationGroupForm } from '@/components/RotationGroupFormFields'
 export default function EditRotationGroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +16,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
   const [selected, setSelected] = useState('')
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
   const router = useRouter()
   useEffect(() => {
     fetchRotationGroup(id).then(({ data, error }) => {
@@ -43,6 +44,14 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
       await loadMembership()
     }
     setAdding(false)
+  }
+  async function handleRemove(employeeId: string) {
+    setRemoving(employeeId)
+    setAddError(null)
+    const { error } = await removeRotationGroupMember(id, employeeId)
+    if (error) setAddError(error)
+    else await loadMembership()
+    setRemoving(null)
   }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -78,9 +87,17 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
         {roster.length > 0 && (
           <ol className="space-y-2 mb-6">
             {roster.map((member, index) => (
-              <li key={member.employee_id} className="flex gap-3">
+              <li key={member.employee_id} className="flex gap-3 items-center">
                 <span className="text-gray-500 w-6">{index + 1}</span>
-                <span>{member.name}</span>
+                <span className="flex-1">{member.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(member.employee_id)}
+                  disabled={removing === member.employee_id}
+                  className="text-sm underline disabled:opacity-50"
+                >
+                  {removing === member.employee_id ? 'Removing\u2026' : 'Remove'}
+                </button>
               </li>
             ))}
           </ol>

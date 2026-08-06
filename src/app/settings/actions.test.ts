@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -34,6 +34,7 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
   builder.order = vi.fn().mockReturnValue(builder)
   builder.update = vi.fn().mockReturnValue(builder)
   builder.insert = vi.fn().mockReturnValue(builder)
+  builder.delete = vi.fn().mockReturnValue(builder)
   return builder
 }
 
@@ -307,5 +308,43 @@ describe('addRotationGroupMember', () => {
       .mockReturnValueOnce(makeQueryBuilder(null, { message: 'duplicate key' }) as never)
     const result = await addRotationGroupMember('rg-1', 'emp-1')
     expect(result).toEqual({ error: 'duplicate key' })
+  })
+})
+
+describe('removeRotationGroupMember', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await removeRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'Not authenticated' })
+  })
+  it('returns an error when the group is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await removeRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'Rotation group not found' })
+  })
+  it('deletes scoped to the group and the employee', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const deleteBuilder = makeQueryBuilder(null)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(deleteBuilder as never)
+    const result = await removeRotationGroupMember('rg-1', 'emp-1')
+    expect(deleteBuilder.delete).toHaveBeenCalled()
+    expect(deleteBuilder.eq).toHaveBeenCalledWith('rotation_group_id', 'rg-1')
+    expect(deleteBuilder.eq).toHaveBeenCalledWith('employee_id', 'emp-1')
+    expect(result).toEqual({ error: null })
+  })
+  it('returns the error message when the delete fails', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder(null, { message: 'delete failed' }) as never)
+    const result = await removeRotationGroupMember('rg-1', 'emp-1')
+    expect(result).toEqual({ error: 'delete failed' })
   })
 })
