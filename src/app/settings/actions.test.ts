@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -205,5 +205,48 @@ describe('fetchRotationGroupRoster', () => {
       ],
       error: null,
     })
+  })
+})
+
+
+describe('fetchAvailableEmployees', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await fetchAvailableEmployees('rg-1')
+    expect(result).toEqual({ data: null, error: 'Not authenticated' })
+  })
+
+  it('returns an error when the group is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await fetchAvailableEmployees('rg-1')
+    expect(result).toEqual({ data: null, error: 'Rotation group not found' })
+  })
+
+  it('lists only active employees in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const empBuilder = makeQueryBuilder([{ id: 'emp-1', name: 'Ada' }])
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([]) as never)
+      .mockReturnValueOnce(empBuilder as never)
+    await fetchAvailableEmployees('rg-1')
+    expect(empBuilder.eq).toHaveBeenCalledWith('company_id', 'co-1')
+    expect(empBuilder.eq).toHaveBeenCalledWith('is_active', true)
+  })
+
+  it('excludes employees already in the group', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([{ employee_id: 'emp-1' }]) as never)
+      .mockReturnValueOnce(makeQueryBuilder([{ id: 'emp-1', name: 'Ada' }, { id: 'emp-2', name: 'Grace' }]) as never)
+    const result = await fetchAvailableEmployees('rg-1')
+    expect(result).toEqual({ data: [{ id: 'emp-2', name: 'Grace' }], error: null })
   })
 })
