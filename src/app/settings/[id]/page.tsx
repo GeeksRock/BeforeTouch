@@ -2,8 +2,8 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster } from '../actions'
-import type { RosterMember, RotationGroupForm } from '../actions'
+import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember } from '../actions'
+import type { RosterMember, RotationGroupForm, AvailableEmployee } from '../actions'
 import RotationGroupFormFields, { defaultRotationGroupForm } from '@/components/RotationGroupFormFields'
 export default function EditRotationGroupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -12,6 +12,10 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
   const [saveError, setSaveError] = useState<string | null>(null)
   const [roster, setRoster] = useState<RosterMember[]>([])
   const [rosterError, setRosterError] = useState<string | null>(null)
+  const [available, setAvailable] = useState<AvailableEmployee[]>([])
+  const [selected, setSelected] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
   const router = useRouter()
   useEffect(() => {
     fetchRotationGroup(id).then(({ data, error }) => {
@@ -19,12 +23,27 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
       if (error) setLoadError(error)
     })
   }, [id])
+  async function loadMembership() {
+    const rosterResult = await fetchRotationGroupRoster(id)
+    if (rosterResult.data) setRoster(rosterResult.data)
+    if (rosterResult.error) setRosterError(rosterResult.error)
+    const availableResult = await fetchAvailableEmployees(id)
+    if (availableResult.data) setAvailable(availableResult.data)
+  }
   useEffect(() => {
-    fetchRotationGroupRoster(id).then(({ data, error }) => {
-      if (data) setRoster(data)
-      if (error) setRosterError(error)
-    })
+    loadMembership()
   }, [id])
+  async function handleAdd() {
+    setAdding(true)
+    setAddError(null)
+    const { error } = await addRotationGroupMember(id, selected)
+    if (error) setAddError(error)
+    else {
+      setSelected('')
+      await loadMembership()
+    }
+    setAdding(false)
+  }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaveError(null)
@@ -53,19 +72,42 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
       <section className="mt-10">
         <h2 className="text-xl font-bold mb-4">Roster</h2>
         {rosterError && <p className="text-red-600 mb-4">{rosterError}</p>}
-        {!rosterError && roster.length === 0 && (
-          <p className="text-gray-600">No one is in this group yet.</p>
+        {roster.length === 0 && !rosterError && (
+          <p className="text-gray-600 mb-4">No one is in this group yet.</p>
         )}
         {roster.length > 0 && (
-          <ol className="space-y-2">
-            {roster.map((member) => (
+          <ol className="space-y-2 mb-6">
+            {roster.map((member, index) => (
               <li key={member.employee_id} className="flex gap-3">
-                <span className="text-gray-500 w-6">{member.position}</span>
+                <span className="text-gray-500 w-6">{index + 1}</span>
                 <span>{member.name}</span>
               </li>
             ))}
           </ol>
         )}
+        {available.length > 0 && (
+          <div className="flex gap-2 items-start">
+            <select
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+              className="border rounded px-3 py-2 flex-1"
+            >
+              <option value="">Choose an employee&hellip;</option>
+              {available.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!selected || adding}
+              className="border rounded px-4 py-2 disabled:opacity-50"
+            >
+              {adding ? 'Adding\u2026' : 'Add'}
+            </button>
+          </div>
+        )}
+        {addError && <p className="text-red-600 mt-3">{addError}</p>}
       </section>
     </main>
   )
