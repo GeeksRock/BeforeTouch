@@ -2,7 +2,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember } from '../actions'
+import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember } from '../actions'
 import type { RosterMember, RotationGroupForm, AvailableEmployee } from '../actions'
 import RotationGroupFormFields, { defaultRotationGroupForm } from '@/components/RotationGroupFormFields'
 export default function EditRotationGroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +17,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [moving, setMoving] = useState<string | null>(null)
   const router = useRouter()
   useEffect(() => {
     fetchRotationGroup(id).then(({ data, error }) => {
@@ -44,6 +45,14 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
       await loadMembership()
     }
     setAdding(false)
+  }
+  async function handleMove(employeeId: string, direction: 'up' | 'down') {
+    setMoving(employeeId + direction)
+    setAddError(null)
+    const { error } = await moveRotationGroupMember(id, employeeId, direction)
+    if (error) setAddError(error)
+    else await loadMembership()
+    setMoving(null)
   }
   async function handleRemove(employeeId: string) {
     setRemoving(employeeId)
@@ -90,6 +99,24 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
               <li key={member.employee_id} className="flex gap-3 items-center">
                 <span className="text-gray-500 w-6">{index + 1}</span>
                 <span className="flex-1">{member.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleMove(member.employee_id, 'up')}
+                  disabled={index === 0 || moving === member.employee_id + 'up'}
+                  className="text-sm px-2 disabled:opacity-30"
+                  aria-label="Move up"
+                >
+                  &uarr;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMove(member.employee_id, 'down')}
+                  disabled={index === roster.length - 1 || moving === member.employee_id + 'down'}
+                  className="text-sm px-2 disabled:opacity-30"
+                  aria-label="Move down"
+                >
+                  &darr;
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRemove(member.employee_id)}
