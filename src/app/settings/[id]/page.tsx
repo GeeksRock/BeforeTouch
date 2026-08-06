@@ -2,19 +2,27 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchRotationGroup, updateRotationGroup } from '../actions'
-import type { RotationGroupForm } from '../actions'
+import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster } from '../actions'
+import type { RosterMember, RotationGroupForm } from '../actions'
 import RotationGroupFormFields, { defaultRotationGroupForm } from '@/components/RotationGroupFormFields'
 export default function EditRotationGroupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [form, setForm] = useState<RotationGroupForm>(defaultRotationGroupForm)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [roster, setRoster] = useState<RosterMember[]>([])
+  const [rosterError, setRosterError] = useState<string | null>(null)
   const router = useRouter()
   useEffect(() => {
     fetchRotationGroup(id).then(({ data, error }) => {
       if (data) setForm(data)
       if (error) setLoadError(error)
+    })
+  }, [id])
+  useEffect(() => {
+    fetchRotationGroupRoster(id).then(({ data, error }) => {
+      if (data) setRoster(data)
+      if (error) setRosterError(error)
     })
   }, [id])
   async function handleSubmit(e: React.FormEvent) {
@@ -42,6 +50,23 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
         saveError={saveError}
         submitLabel="Save changes"
       />
+      <section className="mt-10">
+        <h2 className="text-xl font-bold mb-4">Roster</h2>
+        {rosterError && <p className="text-red-600 mb-4">{rosterError}</p>}
+        {!rosterError && roster.length === 0 && (
+          <p className="text-gray-600">No one is in this group yet.</p>
+        )}
+        {roster.length > 0 && (
+          <ol className="space-y-2">
+            {roster.map((member) => (
+              <li key={member.employee_id} className="flex gap-3">
+                <span className="text-gray-500 w-6">{member.position}</span>
+                <span>{member.name}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </main>
   )
 }
