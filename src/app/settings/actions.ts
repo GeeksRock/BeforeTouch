@@ -99,3 +99,41 @@ export async function updateRotationGroup(id: string, data: RotationGroupForm): 
   if (updateError) return { error: updateError.message }
   return { error: null }
 }
+
+export interface RosterMember {
+  employee_id: string
+  position: number
+  name: string
+}
+
+export async function fetchRotationGroupRoster(id: string): Promise<{ data: RosterMember[] | null; error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { data: null, error: 'Not authenticated' }
+  const { data: employee, error: empError } = await client
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (empError) return { data: null, error: empError.message }
+  if (!employee) return { data: null, error: 'Employee record not found' }
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from('rotation_group')
+    .select('id')
+    .eq('id', id)
+    .eq('company_id', employee.company_id)
+    .maybeSingle()
+  if (groupError) return { data: null, error: groupError.message }
+  if (!group) return { data: null, error: 'Rotation group not found' }
+  const { data: rows, error: rosterError } = await supabaseAdmin
+    .from('employee_rotation_group')
+    .select('employee_id, position, employee(name)')
+    .eq('rotation_group_id', id)
+    .order('position', { ascending: true })
+  if (rosterError) return { data: null, error: rosterError.message }
+  const roster = (rows as unknown as { employee_id: string; position: number; employee: { name: string } }[]).map(
+    (row) => ({ employee_id: row.employee_id, position: row.position, name: row.employee.name }),
+  )
+  return { data: roster, error: null }
+}

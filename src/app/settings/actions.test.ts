@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -31,6 +31,7 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
   builder.eq = vi.fn().mockReturnValue(builder)
   builder.select = vi.fn().mockReturnValue(builder)
   builder.limit = vi.fn().mockReturnValue(builder)
+  builder.order = vi.fn().mockReturnValue(builder)
   builder.update = vi.fn().mockReturnValue(builder)
   builder.insert = vi.fn().mockReturnValue(builder)
   return builder
@@ -38,18 +39,6 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
 
 const userId = 'user-1'
 const employeeRow = { company_id: 'co-1' }
-const companyData = {
-  name: 'Acme',
-  rotation_length: '1_week',
-  rotation_start_day: 'Monday',
-  rotation_start_time: '09:00',
-  rotation_end_day: 'Friday',
-  rotation_end_time: '17:00',
-  has_backup: false,
-  allowed_volunteer_types: ['full_rotation'],
-  approval_approver: 'on_call',
-}
-
 function mockAuthAs(id: string | null) {
   const getUserMock = vi.fn().mockResolvedValue({
     data: { user: id ? { id } : null },
@@ -155,5 +144,66 @@ describe('updateRotationGroup', () => {
     expect(updateBuilder.eq).toHaveBeenCalledWith('id', 'rg-1')
     expect(updateBuilder.eq).toHaveBeenCalledWith('company_id', 'co-1')
     expect(result).toEqual({ error: null })
+  })
+})
+
+describe('fetchRotationGroupRoster', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await fetchRotationGroupRoster('rg-1')
+    expect(result).toEqual({ data: null, error: 'Not authenticated' })
+  })
+
+  it('returns an error when the group is not in the caller company', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await fetchRotationGroupRoster('rg-1')
+    expect(result).toEqual({ data: null, error: 'Rotation group not found' })
+  })
+
+  it('scopes the group check by id and company_id', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const groupBuilder = makeQueryBuilder({ id: 'rg-1' })
+    const rosterBuilder = makeQueryBuilder([])
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(groupBuilder as never)
+      .mockReturnValueOnce(rosterBuilder as never)
+    await fetchRotationGroupRoster('rg-1')
+    expect(groupBuilder.eq).toHaveBeenCalledWith('id', 'rg-1')
+    expect(groupBuilder.eq).toHaveBeenCalledWith('company_id', 'co-1')
+  })
+
+  it('returns an empty roster without an error', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(makeQueryBuilder([]) as never)
+    const result = await fetchRotationGroupRoster('rg-1')
+    expect(result).toEqual({ data: [], error: null })
+  })
+
+  it('returns the roster ordered by position', async () => {
+    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const rosterBuilder = makeQueryBuilder([
+      { employee_id: 'emp-1', position: 1, employee: { name: 'Ada' } },
+      { employee_id: 'emp-2', position: 2, employee: { name: 'Grace' } },
+    ])
+    vi.mocked(supabaseAdmin.from)
+      .mockReturnValueOnce(makeQueryBuilder({ id: 'rg-1' }) as never)
+      .mockReturnValueOnce(rosterBuilder as never)
+    const result = await fetchRotationGroupRoster('rg-1')
+    expect(rosterBuilder.order).toHaveBeenCalledWith('position', { ascending: true })
+    expect(result).toEqual({
+      data: [
+        { employee_id: 'emp-1', position: 1, name: 'Ada' },
+        { employee_id: 'emp-2', position: 2, name: 'Grace' },
+      ],
+      error: null,
+    })
   })
 })
