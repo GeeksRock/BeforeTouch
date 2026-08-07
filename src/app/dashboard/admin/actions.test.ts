@@ -12,6 +12,10 @@ vi.mock('@/lib/supabase-server', () => ({
   }),
 }))
 
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: { from: mockFrom },
+}))
+
 import { fetchAdminDashboard } from './actions'
 
 describe('fetchAdminDashboard', () => {

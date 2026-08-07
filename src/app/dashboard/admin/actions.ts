@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface AdminDashboardData {
   company: { id: string; name: string; state: string }
@@ -30,7 +31,7 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
   if (!company) return { data: null, error: 'No company found for this account' }
 
   const [rotResult, empResult] = await Promise.all([
-    client
+    supabaseAdmin
       .from('rotation')
       .select('id, on_call_employee_id, start_datetime, end_datetime, rotation_group_id, rotation_group(name)')
       .eq('company_id', company.id)
