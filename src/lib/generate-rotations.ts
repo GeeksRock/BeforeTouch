@@ -7,6 +7,7 @@ export interface GenerateRotationsInput {
   rotationLength: string
   hasBackup: boolean
   roster: string[]
+  startIndex: number
 }
 
 export interface GeneratedRotation {
@@ -37,8 +38,8 @@ export function generateRotations(input: GenerateRotationsInput): GeneratedRotat
   for (let i = 0; i < PERIODS; i++) {
     const periodEnd = periodStart.plus({ weeks })
     rotations.push({
-      on_call_employee_id: input.roster[i % input.roster.length],
-      backup_employee_id: input.hasBackup ? input.roster[(i + 1) % input.roster.length] : null,
+      on_call_employee_id: input.roster[(input.startIndex + i) % input.roster.length],
+      backup_employee_id: input.hasBackup ? input.roster[(input.startIndex + i + 1) % input.roster.length] : null,
       start_datetime: periodStart.toUTC().toISO()!,
       end_datetime: periodEnd.toUTC().toISO()!,
     })

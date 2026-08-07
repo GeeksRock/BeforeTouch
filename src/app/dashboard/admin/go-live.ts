@@ -63,6 +63,7 @@ export async function goLive(startDate: string): Promise<{ error: string | null 
       rotationLength: group.rotation_length,
       hasBackup: group.has_backup,
       roster,
+      startIndex: 0,
     }).map((r) => ({ ...r, company_id: company.id, rotation_group_id: group.id }))
   })
 
