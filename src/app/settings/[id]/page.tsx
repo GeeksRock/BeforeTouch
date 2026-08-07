@@ -106,7 +106,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
                   className="text-xl font-bold w-11 h-11 flex items-center justify-center rounded hover:bg-gray-800 disabled:opacity-30"
                   aria-label="Move up"
                 >
-                  &uarr;
+                  &#9650;
                 </button>
                 <button
                   type="button"
@@ -115,7 +115,7 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
                   className="text-xl font-bold w-11 h-11 flex items-center justify-center rounded hover:bg-gray-800 disabled:opacity-30"
                   aria-label="Move down"
                 >
-                  &darr;
+                  &#9660;
                 </button>
                 <button
                   type="button"
