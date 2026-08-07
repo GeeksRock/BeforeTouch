@@ -3,7 +3,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export interface AdminDashboardData {
-  company: { id: string; name: string }
+  company: { id: string; name: string; state: string }
   rotation: {
     id: string
     on_call_employee_id: string
@@ -21,7 +21,7 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
 
   const { data: company, error: compError } = await client
     .from('company')
-    .select('id, name')
+    .select('id, name, state')
     .eq('owner_id', user.id)
     .limit(1)
     .maybeSingle()
