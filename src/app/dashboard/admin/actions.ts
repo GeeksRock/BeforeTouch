@@ -4,13 +4,14 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export interface AdminDashboardData {
   company: { id: string; name: string; state: string }
-  rotation: {
+  rotations: {
     id: string
     on_call_employee_id: string
-    on_call_employee_name: string
     start_datetime: string
     end_datetime: string
-  } | null
+    group_name: string
+    on_call_employee_name: string
+  }[]
   employees: { id: string; name: string; is_active: boolean }[]
 }
 
@@ -31,13 +32,10 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
   const [rotResult, empResult] = await Promise.all([
     client
       .from('rotation')
-      .select('id, on_call_employee_id, start_datetime, end_datetime')
+      .select('id, on_call_employee_id, start_datetime, end_datetime, rotation_group_id, rotation_group(name)')
       .eq('company_id', company.id)
-      .lte('start_datetime', new Date().toISOString())
       .gte('end_datetime', new Date().toISOString())
-      .order('start_datetime', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order('start_datetime', { ascending: true }),
     client
       .from('employee')
       .select('id, name, is_active')
@@ -49,15 +47,34 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
   if (empResult.error) return { data: null, error: empResult.error.message }
 
   const employees = empResult.data ?? []
+  const rotRows = (rotResult.data ?? []) as unknown as {
+    id: string
+    on_call_employee_id: string
+    start_datetime: string
+    end_datetime: string
+    rotation_group_id: string
+    rotation_group: { name: string }
+  }[]
 
-  let rotation: AdminDashboardData['rotation'] = null
-  if (rotResult.data) {
-    const onCallEmployee = employees.find(e => e.id === rotResult.data!.on_call_employee_id)
-    rotation = {
-      ...rotResult.data,
-      on_call_employee_name: onCallEmployee?.name ?? 'Unknown',
+  const soonestByGroup = new Map<string, (typeof rotRows)[number]>()
+  for (const row of rotRows) {
+    const existing = soonestByGroup.get(row.rotation_group_id)
+    if (!existing || row.start_datetime < existing.start_datetime) {
+      soonestByGroup.set(row.rotation_group_id, row)
     }
   }
 
-  return { data: { company, rotation, employees }, error: null }
+  const rotations = [...soonestByGroup.values()]
+    .map(row => ({
+      id: row.id,
+      on_call_employee_id: row.on_call_employee_id,
+      start_datetime: row.start_datetime,
+      end_datetime: row.end_datetime,
+      group_name: row.rotation_group.name,
+      on_call_employee_name:
+        employees.find(e => e.id === row.on_call_employee_id)?.name ?? 'Unknown',
+    }))
+    .sort((a, b) => a.group_name.localeCompare(b.group_name))
+
+  return { data: { company, rotations, employees }, error: null }
 }

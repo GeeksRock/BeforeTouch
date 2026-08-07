@@ -41,7 +41,7 @@ export default function AdminDashboardPage() {
   if (error) return <main className="max-w-lg mx-auto p-8 text-red-600">{error}</main>
   if (!data) return null
 
-  const { company, rotation, employees } = data
+  const { company, rotations, employees } = data
 
   return (
     <main className="max-w-lg mx-auto p-8">
@@ -49,7 +49,7 @@ export default function AdminDashboardPage() {
       <p className="text-sm text-gray-500 mb-6">Admin view</p>
 
       <section className="border rounded p-4 mb-6">
-        <h2 className="font-semibold mb-2">Active rotation</h2>
+        <h2 className="font-semibold mb-2">Rotations</h2>
         {company.state === 'setup' ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-gray-600">
@@ -73,14 +73,21 @@ export default function AdminDashboardPage() {
               {goingLive ? 'Going live…' : 'Go live'}
             </button>
           </div>
-        ) : rotation ? (
-          <>
-            <p className="text-sm font-medium">On call: {rotation.on_call_employee_name}</p>
-            <p className="text-sm">From: {new Date(rotation.start_datetime).toLocaleString()}</p>
-            <p className="text-sm">To: {new Date(rotation.end_datetime).toLocaleString()}</p>
-          </>
+        ) : rotations.length > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {rotations.map(rot => (
+              <li key={rot.id}>
+                <p className="text-sm font-medium">{rot.group_name}</p>
+                <p className="text-sm">On call: {rot.on_call_employee_name}</p>
+                <p className="text-sm text-gray-500">
+                  {new Date(rot.start_datetime).toLocaleString()} &ndash;{' '}
+                  {new Date(rot.end_datetime).toLocaleString()}
+                </p>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p className="text-sm text-gray-500">No active rotation.</p>
+          <p className="text-sm text-gray-500">No upcoming rotations.</p>
         )}
       </section>
 

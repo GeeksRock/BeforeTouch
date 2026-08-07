@@ -12,7 +12,7 @@ import AdminDashboard from './page'
 
 const setupData = {
   company: { id: 'co-1', name: 'Acme HVAC', state: 'setup' },
-  rotation: null,
+  rotations: [],
   employees: [],
 }
 
