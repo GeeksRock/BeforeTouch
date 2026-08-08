@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface ProfileForm {
   name: string
@@ -12,7 +13,7 @@ export async function fetchProfile(): Promise<{ data: ProfileForm | null; error:
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: employee, error: empError } = await client
+  const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
     .select('name, contact')
     .eq('auth_user_id', user.id)
@@ -28,7 +29,7 @@ export async function updateProfile(data: ProfileForm): Promise<{ error: string 
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { error: updateError } = await client
+  const { error: updateError } = await supabaseAdmin
     .from('employee')
     .update(data)
     .eq('auth_user_id', user.id)

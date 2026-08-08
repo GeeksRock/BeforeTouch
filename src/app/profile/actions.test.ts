@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(),
   },
 }))
@@ -40,7 +40,6 @@ function mockAuthAs(id: string | null) {
   vi.mocked(createSupabaseServerClient).mockReturnValue(
     Promise.resolve({
       auth: { getUser: getUserMock },
-      from: supabase.from,
     }) as never,
   )
 }
@@ -49,7 +48,7 @@ describe('fetchProfile', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(profileData) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(profileData) as never)
   })
 
   it('returns name and contact', async () => {
@@ -60,7 +59,7 @@ describe('fetchProfile', () => {
 
   it('queries the employee table', async () => {
     await fetchProfile()
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('employee')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
   })
 
   it('returns an error when not authenticated', async () => {
@@ -73,7 +72,7 @@ describe('fetchProfile', () => {
   it('returns an error when the query fails', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(
       makeQueryBuilder(null, { message: 'query failed' }) as never,
     )
     const result = await fetchProfile()
@@ -83,7 +82,7 @@ describe('fetchProfile', () => {
   it('returns an error when employee record not found', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
     const result = await fetchProfile()
     expect(result.error).toBe('Employee record not found')
   })
@@ -97,18 +96,18 @@ describe('updateProfile', () => {
 
   it('updates the employee record with name and contact', async () => {
     const updateBuilder = makeQueryBuilder(null)
-    vi.mocked(supabase.from).mockReturnValueOnce(updateBuilder as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(updateBuilder as never)
 
     const result = await updateProfile(profileData)
 
     expect(result.error).toBeNull()
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('employee')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
     expect(updateBuilder.update).toHaveBeenCalledWith(profileData)
   })
 
   it('filters the update by auth_user_id', async () => {
     const updateBuilder = makeQueryBuilder(null)
-    vi.mocked(supabase.from).mockReturnValueOnce(updateBuilder as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(updateBuilder as never)
 
     await updateProfile(profileData)
 
@@ -122,7 +121,7 @@ describe('updateProfile', () => {
   })
 
   it('returns an error when the update fails', async () => {
-    vi.mocked(supabase.from).mockReturnValueOnce(
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(
       makeQueryBuilder(null, { message: 'update failed' }) as never,
     )
     const result = await updateProfile(profileData)
