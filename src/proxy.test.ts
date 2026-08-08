@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
 }))
 
 const { proxy } = await import('./proxy')
@@ -28,13 +35,12 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
 
 describe('proxy', () => {
   const getUserMock = vi.fn()
-  const fromMock = vi.fn()
+  const fromMock = vi.mocked(supabaseAdmin.from)
 
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(createServerClient).mockReturnValue({
       auth: { getUser: getUserMock },
-      from: fromMock,
     } as never)
   })
 
@@ -77,7 +83,7 @@ describe('proxy', () => {
   describe('authenticated requests to protected routes', () => {
     beforeEach(() => {
       getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-      fromMock.mockReturnValue(makeQueryBuilder({ is_active: true }))
+      fromMock.mockReturnValue(makeQueryBuilder({ is_active: true }) as never)
     })
 
     it('passes through /dashboard for an active employee', async () => {
@@ -101,14 +107,20 @@ describe('proxy', () => {
     })
 
     it('redirects to /login when employee is_active is false', async () => {
-      fromMock.mockReturnValue(makeQueryBuilder({ is_active: false }))
+      fromMock.mockReturnValue(makeQueryBuilder({ is_active: false }) as never)
       const res = await proxy(makeRequest('/dashboard'))
       expect(res.headers.get('location')).toContain('/login')
     })
 
-    it('passes through when no employee record exists for the user', async () => {
-      fromMock.mockReturnValue(makeQueryBuilder(null))
+    it('redirects to /login when no employee record exists for the user', async () => {
+      fromMock.mockReturnValue(makeQueryBuilder(null) as never)
       const res = await proxy(makeRequest('/dashboard'))
+      expect(res.headers.get('location')).toContain('/login')
+    })
+
+    it('passes through /setup when no employee record exists yet', async () => {
+      fromMock.mockReturnValue(makeQueryBuilder(null) as never)
+      const res = await proxy(makeRequest('/setup'))
       expect(res.headers.get('location')).toBeNull()
     })
 

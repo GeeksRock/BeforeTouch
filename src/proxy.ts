@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -36,14 +37,15 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.nextUrl))
     }
 
-    const { data: employee } = await supabase
+    const { data: employee } = await supabaseAdmin
       .from('employee')
       .select('is_active')
       .eq('auth_user_id', user.id)
       .limit(1)
       .maybeSingle()
 
-    if (employee?.is_active === false) {
+    const isSetupLanding = pathname === '/setup'
+    if (employee?.is_active !== true && !isSetupLanding) {
       return NextResponse.redirect(new URL('/login', request.nextUrl))
     }
   }
