@@ -36,8 +36,8 @@ describe('listEmployees', () => {
     vi.resetAllMocks()
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: getUserMock },
-      from: fromMock,
     } as never)
+    vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
   })
 
   it('returns an error when not authenticated', async () => {
@@ -95,12 +95,12 @@ describe('updateEmployee', () => {
   function mockCaller(caller: typeof callerRow | null = callerRow) {
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-caller' } } }) },
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: caller, error: null }),
-      }),
+    } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: caller, error: null }),
     } as never)
   }
 
@@ -111,9 +111,7 @@ describe('updateEmployee', () => {
       then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
         Promise.resolve({ data: admins, error: null }).then(res, rej),
     }
-    vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(adminBuilder as never)
-      .mockReturnValue({ update: updateMock } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(adminBuilder as never)
   }
 
   beforeEach(() => {
@@ -180,7 +178,7 @@ describe('updateEmployee', () => {
     mockCaller()
     mockUpdateChain({ data: [{ id: 'emp-1' }], error: null })
     const result = await updateEmployee('emp-1', { is_active: true })
-    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledTimes(2)
     expect(result).toEqual({ error: null })
   })
 })
@@ -207,8 +205,8 @@ describe('addEmployee', () => {
     vi.resetAllMocks()
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: getUserMock },
-      from: fromMock,
     } as never)
+    vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
   })
 
   it('returns an error when not authenticated', async () => {
@@ -231,7 +229,7 @@ describe('addEmployee', () => {
   it("inserts the employee for the user's company", async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
-    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: mockInsertEmployee({ id: 'emp-9' }) } as never)
+    fromMock.mockReturnValueOnce({ insert: mockInsertEmployee({ id: 'emp-9' }) })
 
     const result = await addEmployee(validForm)
 
@@ -242,7 +240,7 @@ describe('addEmployee', () => {
   it('returns the insert error when it fails', async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
-    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: mockInsertEmployee(null, { message: 'insert failed' }) } as never)
+    fromMock.mockReturnValueOnce({ insert: mockInsertEmployee(null, { message: 'insert failed' }) })
 
     const result = await addEmployee(validForm)
 
@@ -258,8 +256,8 @@ describe('bulkAddEmployees', () => {
     vi.resetAllMocks()
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: getUserMock },
-      from: fromMock,
     } as never)
+    vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
   })
 
   const rows = [
@@ -295,7 +293,7 @@ describe('bulkAddEmployees', () => {
     getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
     const insertMock = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
+    fromMock.mockReturnValueOnce({ insert: insertMock })
 
     const result = await bulkAddEmployees(rows)
 
@@ -308,7 +306,7 @@ describe('bulkAddEmployees', () => {
     getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
     const insertMock = vi.fn().mockResolvedValue({ error: { message: 'bulk insert failed' } })
-    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
+    fromMock.mockReturnValueOnce({ insert: insertMock })
 
     const result = await bulkAddEmployees(rows)
 

@@ -21,7 +21,7 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: company, error: compError } = await client
+  const { data: company, error: compError } = await supabaseAdmin
     .from('company')
     .select('id, name, state')
     .eq('owner_id', user.id)
@@ -37,7 +37,7 @@ export async function fetchAdminDashboard(): Promise<{ data: AdminDashboardData 
       .eq('company_id', company.id)
       .gte('end_datetime', new Date().toISOString())
       .order('start_datetime', { ascending: true }),
-    client
+    supabaseAdmin
       .from('employee')
       .select('id, name, is_active')
       .eq('company_id', company.id)

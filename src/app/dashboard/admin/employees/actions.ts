@@ -19,7 +19,7 @@ export async function listEmployees(): Promise<{ data: EmployeeRow[] | null; err
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: company, error: compError } = await client
+  const { data: company, error: compError } = await supabaseAdmin
     .from('company')
     .select('id')
     .eq('owner_id', user.id)
@@ -28,7 +28,7 @@ export async function listEmployees(): Promise<{ data: EmployeeRow[] | null; err
   if (compError) return { data: null, error: compError.message }
   if (!company) return { data: null, error: 'No company found for this account' }
 
-  const { data, error } = await client
+  const { data, error } = await supabaseAdmin
     .from('employee')
     .select('id, name, contact, can_volunteer, can_receive_volunteers, is_active, auth_user_id')
     .eq('company_id', company.id)
@@ -47,7 +47,7 @@ export async function updateEmployee(
   const client = await createSupabaseServerClient()
   const { data: { user } } = await client.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-  const { data: caller } = await client
+  const { data: caller } = await supabaseAdmin
     .from('employee')
     .select('id, company_id, is_admin')
     .eq('auth_user_id', user.id)
@@ -91,7 +91,7 @@ export async function addEmployee(form: AddEmployeeForm): Promise<{ data: { id: 
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: company, error: compError } = await client
+  const { data: company, error: compError } = await supabaseAdmin
     .from('company')
     .select('id')
     .eq('owner_id', user.id)
@@ -127,7 +127,7 @@ export async function bulkAddEmployees(rows: BulkEmployeeInput[]): Promise<{ dat
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: company, error: compError } = await client
+  const { data: company, error: compError } = await supabaseAdmin
     .from('company')
     .select('id')
     .eq('owner_id', user.id)
