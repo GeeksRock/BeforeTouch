@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { supabase } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email'
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: vi.fn(),
-  },
-}))
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
@@ -77,7 +71,6 @@ function mockAuthAs(id: string | null) {
   vi.mocked(createSupabaseServerClient).mockReturnValue(
     Promise.resolve({
       auth: { getUser: getUserMock },
-      from: supabase.from,
     }) as never,
   )
 }
@@ -89,7 +82,7 @@ describe('fetchDashboard', () => {
   describe('when there is no active rotation', () => {
     beforeEach(() => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(null) as never)
     })
@@ -102,7 +95,7 @@ describe('fetchDashboard', () => {
   describe('when the current user is on call', () => {
     beforeEach(() => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)   // volunteer_offer (parallel)
@@ -143,19 +136,19 @@ describe('fetchDashboard', () => {
 
     it('queries the rotation table', async () => {
       await fetchDashboard()
-      expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('rotation')
+      expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('rotation')
     })
 
     it('queries volunteer_offer for the rotation', async () => {
       await fetchDashboard()
-      expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('volunteer_offer')
+      expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('volunteer_offer')
     })
   })
 
   describe('when the current user is on call with no volunteer offers', () => {
     beforeEach(() => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(null) as never)   // volunteer_offer
@@ -173,7 +166,7 @@ describe('fetchDashboard', () => {
   describe('when the current user is not on call', () => {
     beforeEach(() => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(otherRotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(onCallEmployee) as never)
@@ -219,7 +212,7 @@ describe('fetchDashboard', () => {
   describe('when the employee is an admin', () => {
     beforeEach(() => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(adminEmployee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)   // volunteer_offer (parallel)
@@ -268,7 +261,7 @@ describe('fetchDashboard', () => {
 
     it('returns an error when the employee query fails', async () => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from).mockReturnValueOnce(
+      vi.mocked(supabaseAdmin.from).mockReturnValueOnce(
         makeQueryBuilder(null, { message: 'employee not found' }) as never,
       )
       const result = await fetchDashboard()
@@ -277,7 +270,7 @@ describe('fetchDashboard', () => {
 
     it('returns an error when the rotation query fails', async () => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(null, { message: 'rotation not found' }) as never)
       const result = await fetchDashboard()
@@ -286,7 +279,7 @@ describe('fetchDashboard', () => {
 
     it('returns an error when the volunteer_offer query fails for an on-call user', async () => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(null, { message: 'offers query failed' }) as never)
@@ -298,7 +291,7 @@ describe('fetchDashboard', () => {
 
     it('returns an error when the rotation_group query fails for an on-call user', async () => {
       mockAuthAs(userId)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce(makeQueryBuilder(rotation) as never)
         .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)
@@ -317,13 +310,12 @@ describe('submitVolunteerOffer', () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
     vi.mocked(sendEmail).mockResolvedValue(undefined)
-    vi.mocked(supabase.from)
+    vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder(employee) as never)  // employee lookup
       .mockReturnValueOnce({ insert: insertMock } as never)       // volunteer_offer insert
       .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)  // rotation (notification)
-      .mockReturnValueOnce(makeQueryBuilder({ contact: 'oncall@example.com' }) as never)   // on_call employee (notification)
-    vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)  // rotation_group (notification)
+      .mockReturnValueOnce(makeQueryBuilder({ contact: 'oncall@example.com' }) as never)   // on_call employee (notification)
   })
 
   it('inserts a volunteer offer with offer_type and no datetimes when not provided', async () => {
@@ -331,7 +323,7 @@ describe('submitVolunteerOffer', () => {
 
     await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
 
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('volunteer_offer')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('volunteer_offer')
     expect(insertMock).toHaveBeenCalledWith([
       {
         rotation_id: 'rot-1',
@@ -380,7 +372,7 @@ describe('submitVolunteerOffer', () => {
   it('returns an error when employee record not found', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
     const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
     expect(result.error).toBe('Employee record not found')
   })
@@ -388,7 +380,7 @@ describe('submitVolunteerOffer', () => {
   it('returns an error when employee lookup fails', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null, { message: 'lookup failed' }) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null, { message: 'lookup failed' }) as never)
     const result = await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
     expect(result.error).toBe('lookup failed')
   })
@@ -409,13 +401,12 @@ describe('submitVolunteerOffer', () => {
       mockAuthAs(userId)
       insertMock.mockResolvedValue({ error: null })
       vi.mocked(sendEmail).mockResolvedValue(undefined)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder(employee) as never)
         .mockReturnValueOnce({ insert: insertMock } as never)
         .mockReturnValueOnce(makeQueryBuilder({ on_call_employee_id: 'emp-2', rotation_group_id: 'rg-1' }) as never)
-        .mockReturnValueOnce(makeQueryBuilder({ contact: 'manager@example.com' }) as never)
-      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'manager' }) as never)
+        .mockReturnValueOnce(makeQueryBuilder({ contact: 'manager@example.com' }) as never)
       await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'manager@example.com',
@@ -447,7 +438,7 @@ describe('approveVolunteerOffer', () => {
     mockAuthAs(userId)
     approvalInsertMock.mockResolvedValue({ error: null })
     vi.mocked(sendEmail).mockResolvedValue(undefined)
-    vi.mocked(supabase.from)
+    vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)                                     // employee lookup
       .mockReturnValueOnce({ insert: approvalInsertMock } as never)                                        // approval insert
       .mockReturnValueOnce(makeQueryBuilder(null) as never)                                                 // volunteer_offer update
@@ -457,7 +448,7 @@ describe('approveVolunteerOffer', () => {
 
   it('inserts into the approval table with correct fields', async () => {
     await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('approval')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('approval')
     expect(approvalInsertMock).toHaveBeenCalledWith([
       expect.objectContaining({
         volunteer_offer_id: 'offer-1',
@@ -470,7 +461,7 @@ describe('approveVolunteerOffer', () => {
 
   it('updates volunteer_offer status', async () => {
     await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
-    expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('volunteer_offer')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('volunteer_offer')
   })
 
   it('returns null error on success', async () => {
@@ -487,7 +478,7 @@ describe('approveVolunteerOffer', () => {
   it('returns an error when employee record not found', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
     const result = await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
     expect(result.error).toBe('Employee record not found')
   })
@@ -495,7 +486,7 @@ describe('approveVolunteerOffer', () => {
   it('returns an error when the approval insert fails', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from)
+    vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
       .mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: { message: 'insert failed' } }) } as never)
     const result = await approveVolunteerOffer({ offer_id: 'offer-1', decision: 'accepted' })
@@ -505,7 +496,7 @@ describe('approveVolunteerOffer', () => {
   it('returns an error when the status update fails', async () => {
     vi.resetAllMocks()
     mockAuthAs(userId)
-    vi.mocked(supabase.from)
+    vi.mocked(supabaseAdmin.from)
       .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
       .mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: null }) } as never)
       .mockReturnValueOnce(makeQueryBuilder(null, { message: 'update failed' }) as never)
@@ -528,7 +519,7 @@ describe('approveVolunteerOffer', () => {
       mockAuthAs(userId)
       approvalInsertMock.mockResolvedValue({ error: null })
       vi.mocked(sendEmail).mockResolvedValue(undefined)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
         .mockReturnValueOnce({ insert: approvalInsertMock } as never)
         .mockReturnValueOnce(makeQueryBuilder(null) as never)
@@ -552,7 +543,7 @@ describe('approveVolunteerOffer', () => {
       vi.resetAllMocks()
       mockAuthAs(userId)
       vi.mocked(sendEmail).mockResolvedValue(undefined)
-      vi.mocked(supabase.from)
+      vi.mocked(supabaseAdmin.from)
         .mockReturnValueOnce(makeQueryBuilder({ id: 'emp-1' }) as never)
         .mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: null }) } as never)
         .mockReturnValueOnce(makeQueryBuilder(null, { message: 'update failed' }) as never)

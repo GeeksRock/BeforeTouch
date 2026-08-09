@@ -62,9 +62,8 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
     return { data: null, error: e.message ?? 'Not authenticated' }
   }
 
-  const client = await createSupabaseServerClient()
 
-  const { data: employee, error: empError } = await client
+  const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
     .select('id, name, company_id, is_admin')
     .eq('auth_user_id', userId)
@@ -73,7 +72,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
 
-  const { data: rotation, error: rotError } = await client
+  const { data: rotation, error: rotError } = await supabaseAdmin
     .from('rotation')
     .select('id, on_call_employee_id, start_datetime, end_datetime, rotation_group_id')
     .eq('company_id', employee.company_id)
@@ -87,7 +86,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
 
   if (employee.is_admin) {
     const [offersResult, rgResult] = await Promise.all([
-      client
+      supabaseAdmin
         .from('volunteer_offer')
         .select('id, volunteer_employee_id, offer_type, status, employee(name)')
         .eq('rotation_id', rotation.id),
@@ -109,7 +108,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
 
   if (rotation.on_call_employee_id === employee.id) {
     const [offersResult, rgResult] = await Promise.all([
-      client
+      supabaseAdmin
         .from('volunteer_offer')
         .select('id, volunteer_employee_id, offer_type, status, employee(name)')
         .eq('rotation_id', rotation.id),
@@ -130,7 +129,7 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
   }
 
   const [onCallEmpResult, rgResult] = await Promise.all([
-    client.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
+    supabaseAdmin.from('employee').select('name').eq('id', rotation.on_call_employee_id).single(),
     supabaseAdmin.from('rotation_group').select('allowed_volunteer_types, approval_approver').eq('id', rotation.rotation_group_id).single(),
   ])
   if (onCallEmpResult.error) return { data: null, error: onCallEmpResult.error.message }
@@ -155,9 +154,8 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
   } catch (e: any) {
     return { error: e.message ?? 'Not authenticated' }
   }
-  const client = await createSupabaseServerClient()
 
-  const { data: employee, error: empError } = await client
+  const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
     .select('id, name, company_id')
     .eq('auth_user_id', userId)
@@ -174,11 +172,11 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
   }
   if (data.start_datetime) record.start_datetime = data.start_datetime
   if (data.end_datetime) record.end_datetime = data.end_datetime
-  const { error } = await client.from('volunteer_offer').insert([record])
+  const { error } = await supabaseAdmin.from('volunteer_offer').insert([record])
   if (error) return { error: error.message }
 
   try {
-    const rotResult = await client
+    const rotResult = await supabaseAdmin
       .from('rotation')
       .select('on_call_employee_id, rotation_group_id')
       .eq('id', data.rotation_id)
@@ -192,9 +190,9 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
     const onCallEmployeeId = rotResult.data?.on_call_employee_id
     let contactResult: { data: { contact: string } | null } | undefined
     if (approvalApprover === 'on_call') {
-      contactResult = await client.from('employee').select('contact').eq('id', onCallEmployeeId).single()
+      contactResult = await supabaseAdmin.from('employee').select('contact').eq('id', onCallEmployeeId).single()
     } else if (approvalApprover === 'manager') {
-      contactResult = await client
+      contactResult = await supabaseAdmin
         .from('employee')
         .select('contact')
         .eq('company_id', employee.company_id)
@@ -222,9 +220,8 @@ export async function approveVolunteerOffer(data: ApproveOfferInput): Promise<{ 
   } catch (e: any) {
     return { error: e.message ?? 'Not authenticated' }
   }
-  const client = await createSupabaseServerClient()
 
-  const { data: employee, error: empError } = await client
+  const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
     .select('id')
     .eq('auth_user_id', userId)
@@ -233,7 +230,7 @@ export async function approveVolunteerOffer(data: ApproveOfferInput): Promise<{ 
   if (empError) return { error: empError.message }
   if (!employee) return { error: 'Employee record not found' }
 
-  const { error: approvalError } = await client.from('approval').insert([{
+  const { error: approvalError } = await supabaseAdmin.from('approval').insert([{
     volunteer_offer_id: data.offer_id,
     approver_employee_id: employee.id,
     decision: data.decision,
@@ -241,19 +238,19 @@ export async function approveVolunteerOffer(data: ApproveOfferInput): Promise<{ 
   }])
   if (approvalError) return { error: approvalError.message }
 
-  const { error: updateError } = await client
+  const { error: updateError } = await supabaseAdmin
     .from('volunteer_offer')
     .update({ status: data.decision })
     .eq('id', data.offer_id)
   if (updateError) return { error: updateError.message }
 
   try {
-    const { data: offer } = await client
+    const { data: offer } = await supabaseAdmin
       .from('volunteer_offer')
       .select('volunteer_employee_id')
       .eq('id', data.offer_id)
       .single()
-    const { data: volunteer } = await client
+    const { data: volunteer } = await supabaseAdmin
       .from('employee')
       .select('contact, name')
       .eq('id', offer?.volunteer_employee_id)
