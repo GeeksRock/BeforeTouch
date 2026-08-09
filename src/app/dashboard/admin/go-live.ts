@@ -18,7 +18,7 @@ export async function goLive(startDate: string): Promise<{ error: string | null 
   const { data: { user } } = await client.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: employee, error: empError } = await client
+  const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
     .select('company_id')
     .eq('auth_user_id', user.id)
