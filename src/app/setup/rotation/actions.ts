@@ -51,6 +51,15 @@ export async function saveRotation(data: RotationForm) {
   redirect('/dashboard')
 }
 
+export async function listCompanyEmployees(companyId: string): Promise<{ id: string; name: string }[]> {
+  const { data, error } = await supabaseAdmin
+    .from('employee')
+    .select('id, name')
+    .eq('company_id', companyId)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
 export async function getDefaultRotationGroupHasBackup(companyId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin
     .from('rotation_group')

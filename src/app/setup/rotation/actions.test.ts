@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
 }))
 
-const { saveRotation, getDefaultRotationGroupHasBackup } = await import('./actions')
+const { saveRotation, getDefaultRotationGroupHasBackup, listCompanyEmployees } = await import('./actions')
 
 const insertMock = vi.fn()
 const groupSingleMock = vi.fn()
@@ -128,5 +128,29 @@ describe('getDefaultRotationGroupHasBackup', () => {
     singleMock.mockResolvedValue({ data: null, error: { message: 'lookup failed' } })
 
     await expect(getDefaultRotationGroupHasBackup(companyId)).rejects.toThrow('lookup failed')
+  })
+})
+
+describe('listCompanyEmployees', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+  it('returns employees scoped to the company', async () => {
+    const eqMock = vi.fn().mockResolvedValue({
+      data: [{ id: 'emp-1', name: 'Ana' }],
+      error: null,
+    })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ select: selectMock } as never)
+    const result = await listCompanyEmployees('company-123')
+    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
+    expect(eqMock).toHaveBeenCalledWith('company_id', 'company-123')
+    expect(result).toEqual([{ id: 'emp-1', name: 'Ana' }])
+  })
+  it('throws when the query fails', async () => {
+    const eqMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'query failed' } })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
+    vi.mocked(supabaseAdmin.from).mockReturnValue({ select: selectMock } as never)
+    await expect(listCompanyEmployees('company-123')).rejects.toThrow('query failed')
   })
 })
