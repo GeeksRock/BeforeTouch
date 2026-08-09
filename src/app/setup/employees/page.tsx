@@ -57,7 +57,12 @@ function EmployeesForm() {
 
   async function handleDelete(id: string) {
     setDeletingId(id)
-    await deleteEmployee(id)
+    const { error } = await deleteEmployee(id)
+    if (error) {
+      setSaveError(error)
+      setDeletingId(null)
+      return
+    }
     setEmployees(prev => prev.filter(emp => emp.id !== id))
     setDeletingId(null)
   }

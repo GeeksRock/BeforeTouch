@@ -400,29 +400,65 @@ describe('bulkInviteEmployees', () => {
 describe('deleteEmployee', () => {
   const eqMock = vi.fn()
   const deleteMock = vi.fn()
-
+  const selectAfterDelete = vi.fn()
+  const callerRow = { id: 'emp-caller', company_id: 'co-1', is_admin: true }
+  function mockCaller(caller: typeof callerRow | null = callerRow) {
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'auth-caller' } } }) },
+    } as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: caller, error: null }),
+    } as never)
+  }
+  function mockDeleteChain(result: { data: unknown[] | null; error: { message: string } | null }) {
+    selectAfterDelete.mockResolvedValue(result)
+    eqMock.mockReturnValue({ eq: eqMock, select: selectAfterDelete })
+    deleteMock.mockReturnValue({ eq: eqMock })
+  }
   beforeEach(() => {
     vi.resetAllMocks()
-    deleteMock.mockReturnValue({ eq: eqMock })
     vi.mocked(supabaseAdmin.from).mockReturnValue({ delete: deleteMock } as never)
   })
-
-  it('deletes the employee by id', async () => {
-    eqMock.mockResolvedValue({ error: null })
-
+  it('throws when not authenticated', async () => {
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
+    } as never)
+    await expect(deleteEmployee('emp-1')).rejects.toThrow('Not authenticated')
+    expect(deleteMock).not.toHaveBeenCalled()
+  })
+  it('throws when the caller has no employee record', async () => {
+    mockCaller(null)
+    await expect(deleteEmployee('emp-1')).rejects.toThrow('Employee record not found')
+    expect(deleteMock).not.toHaveBeenCalled()
+  })
+  it('returns an error when the caller is not an admin', async () => {
+    mockCaller({ ...callerRow, is_admin: false })
     const result = await deleteEmployee('emp-1')
-
+    expect(result).toEqual({ error: 'Not authorized' })
+    expect(deleteMock).not.toHaveBeenCalled()
+  })
+  it('deletes scoped by id and company_id', async () => {
+    mockCaller()
+    mockDeleteChain({ data: [{ id: 'emp-1' }], error: null })
+    const result = await deleteEmployee('emp-1')
     expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
-    expect(deleteMock).toHaveBeenCalled()
     expect(eqMock).toHaveBeenCalledWith('id', 'emp-1')
+    expect(eqMock).toHaveBeenCalledWith('company_id', 'co-1')
     expect(result).toEqual({ error: null })
   })
-
+  it('returns an error when no employee matches id and company', async () => {
+    mockCaller()
+    mockDeleteChain({ data: [], error: null })
+    const result = await deleteEmployee('emp-other-co')
+    expect(result).toEqual({ error: 'Employee not found' })
+  })
   it('returns the error when delete fails', async () => {
-    eqMock.mockResolvedValue({ error: { message: 'delete failed' } })
-
+    mockCaller()
+    mockDeleteChain({ data: null, error: { message: 'delete failed' } })
     const result = await deleteEmployee('emp-1')
-
     expect(result).toEqual({ error: 'delete failed' })
   })
 })

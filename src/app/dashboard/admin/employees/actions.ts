@@ -176,7 +176,24 @@ export async function bulkInviteEmployees(ids: string[]): Promise<BulkInviteResu
 }
 
 export async function deleteEmployee(id: string): Promise<{ error: string | null }> {
-  const { error } = await supabaseAdmin.from('employee').delete().eq('id', id)
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: caller } = await supabaseAdmin
+    .from('employee')
+    .select('id, company_id, is_admin')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (!caller) throw new Error('Employee record not found')
+  if (!caller.is_admin) return { error: 'Not authorized' }
+  const { data, error } = await supabaseAdmin
+    .from('employee')
+    .delete()
+    .eq('id', id)
+    .eq('company_id', caller.company_id)
+    .select('id')
   if (error) return { error: error.message }
+  if (!data || data.length === 0) return { error: 'Employee not found' }
   return { error: null }
 }
