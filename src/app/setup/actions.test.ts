@@ -1,8 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -34,17 +41,17 @@ function useClient({
   const companyInsert = vi.fn().mockReturnValue({ select: companySelect })
   const employeeInsert = vi.fn().mockResolvedValue(employeeResult)
 
-  const fromMock = vi.fn().mockImplementation((table: string) => {
+  const fromMock = vi.mocked(supabaseAdmin.from).mockImplementation(((table: string) => {
     if (table === 'company') return { insert: companyInsert }
     if (table === 'employee') return { insert: employeeInsert }
     throw new Error(`unexpected table: ${table}`)
-  })
+  }) as never)
 
   const getUserMock = vi.fn().mockResolvedValue({
     data: { user: userId ? { id: userId, email: userEmail } : null },
   })
 
-  const client = { auth: { getUser: getUserMock }, from: fromMock }
+  const client = { auth: { getUser: getUserMock } }
   vi.mocked(createSupabaseServerClient).mockResolvedValue(client as never)
 
   return { companyInsert, employeeInsert, fromMock }

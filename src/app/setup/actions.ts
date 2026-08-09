@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 interface CompanyForm {
   name: string
@@ -14,14 +15,14 @@ export async function saveCompany(data: CompanyForm) {
   if (!user) throw new Error('Not authenticated')
   if (!user.email) throw new Error('Authenticated user has no email address')
 
-  const { data: company, error } = await client
+  const { data: company, error } = await supabaseAdmin
     .from('company')
     .insert([{ name: data.name, owner_id: user.id, state: 'setup' }])
     .select('id')
     .single()
   if (error) throw new Error(error.message)
 
-  const { error: employeeError } = await client
+  const { error: employeeError } = await supabaseAdmin
     .from('employee')
     .insert([{
       company_id: company.id,

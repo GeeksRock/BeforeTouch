@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -24,13 +31,13 @@ function useClient({
   const companyMaybeSingle = vi.fn().mockResolvedValue(companyResult)
   const companyEq = vi.fn().mockReturnValue({ maybeSingle: companyMaybeSingle })
   const companySelect = vi.fn().mockReturnValue({ eq: companyEq })
-  const fromMock = vi.fn().mockReturnValue({ select: companySelect })
+  const fromMock = vi.mocked(supabaseAdmin.from).mockReturnValue({ select: companySelect } as never)
 
   const getUserMock = vi.fn().mockResolvedValue({
     data: { user: userId ? { id: userId } : null },
   })
 
-  const client = { auth: { getUser: getUserMock }, from: fromMock }
+  const client = { auth: { getUser: getUserMock } }
   vi.mocked(createSupabaseServerClient).mockResolvedValue(client as never)
 
   return { fromMock }
