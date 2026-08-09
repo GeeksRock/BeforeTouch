@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
+vi.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: {
     from: vi.fn(),
   },
 }))
@@ -39,7 +39,6 @@ function mockAuthAs(id: string | null) {
   vi.mocked(createSupabaseServerClient).mockReturnValue(
     Promise.resolve({
       auth: { getUser: getUserMock },
-      from: supabase.from,
     }) as never,
   )
 }
@@ -51,13 +50,13 @@ describe('fetchIsAdmin', () => {
 
   it('returns true when the employee is_admin flag is true', async () => {
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: true }) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: true }) as never)
     expect(await fetchIsAdmin()).toBe(true)
   })
 
   it('returns false when the employee is_admin flag is false', async () => {
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: false }) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: false }) as never)
     expect(await fetchIsAdmin()).toBe(false)
   })
 
@@ -68,13 +67,13 @@ describe('fetchIsAdmin', () => {
 
   it('returns false when the employee record is not found', async () => {
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
     expect(await fetchIsAdmin()).toBe(false)
   })
 
   it('returns false when the employee query fails', async () => {
     mockAuthAs(userId)
-    vi.mocked(supabase.from).mockReturnValueOnce(
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(
       makeQueryBuilder(null, { message: 'query failed' }) as never,
     )
     expect(await fetchIsAdmin()).toBe(false)
