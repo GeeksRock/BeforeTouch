@@ -100,17 +100,10 @@ function EmployeesForm() {
     if (!snapshot.is_active) return
 
     // Send the invite in the background; update the list item when it settles
-    try {
-      await inviteEmployee(newId, snapshot.contact)
-      setEmployees(prev =>
-        prev.map(emp => emp.id === newId ? { ...emp, inviteStatus: 'invited' } : emp),
-      )
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Invite failed'
-      setEmployees(prev =>
-        prev.map(emp => emp.id === newId ? { ...emp, inviteStatus: { error: msg } } : emp),
-      )
-    }
+    const { error } = await inviteEmployee(newId)
+    setEmployees(prev =>
+      prev.map(emp => emp.id === newId ? { ...emp, inviteStatus: error ? { error } : 'invited' } : emp),
+    )
   }
 
   return (

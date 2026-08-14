@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, bulkInviteEmployees, type EmployeeRow } from './actions'
 import { parseEmployeeCsv } from './csv'
-import { inviteEmployee } from '@/app/setup/employees/actions'
 
 interface EmployeeFormFields {
   name: string
@@ -136,7 +135,6 @@ export default function ManageEmployeesPage() {
     setAdding(false)
     setShowAdd(false)
 
-    inviteEmployee(data.id, snapshot.contact).catch(() => {})
   }
 
   function downloadTemplate() {

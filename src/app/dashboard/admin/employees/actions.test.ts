@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { inviteEmployee } from '@/app/setup/employees/actions'
 
+vi.mock('@/app/setup/employees/actions', () => ({
+  inviteEmployee: vi.fn(),
+}))
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
 }))
@@ -315,88 +319,27 @@ describe('bulkAddEmployees', () => {
 })
 
 describe('bulkInviteEmployees', () => {
-  const fromMock = vi.fn()
-  const inviteMock = vi.mocked(supabaseAdmin.auth.admin.inviteUserByEmail)
-
+  const inviteMock = vi.mocked(inviteEmployee)
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
   })
-
-  function mockEmployeeFetch(employee: Record<string, unknown> | null, error: { message: string } | null = null) {
-    const singleMock = vi.fn().mockResolvedValue({ data: employee, error })
-    const eqMock = vi.fn().mockReturnValue({ single: singleMock })
-    const selectMock = vi.fn().mockReturnValue({ eq: eqMock })
-    return { select: selectMock }
-  }
-
-  function mockUpdateOk() {
-    const eqMock = vi.fn().mockResolvedValue({ error: null })
-    const updateMock = vi.fn().mockReturnValue({ eq: eqMock })
-    return { update: updateMock }
-  }
-
-  it('returns empty results for an empty id list', async () => {
-    const result = await bulkInviteEmployees([])
-
-    expect(result).toEqual({ invited: [], failed: [] })
-    expect(fromMock).not.toHaveBeenCalled()
+  it('partitions results into invited and failed', async () => {
+    inviteMock
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: 'Employee already invited' })
+      .mockResolvedValueOnce({ error: null })
+    const result = await bulkInviteEmployees(['e-1', 'e-2', 'e-3'])
+    expect(result.invited).toEqual(['e-1', 'e-3'])
+    expect(result.failed).toEqual([{ id: 'e-2', error: 'Employee already invited' }])
+    expect(inviteMock).toHaveBeenCalledTimes(3)
   })
-
-  it('invites an active, never-invited employee', async () => {
-    fromMock
-      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-1', contact: 'a@x.com', is_active: true, auth_user_id: null }))
-      .mockReturnValueOnce(mockUpdateOk())
-    inviteMock.mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null } as never)
-
-    const result = await bulkInviteEmployees(['emp-1'])
-
-    expect(inviteMock).toHaveBeenCalledWith('a@x.com')
-    expect(result).toEqual({ invited: ['emp-1'], failed: [] })
-  })
-
-  it('skips and reports an inactive employee without inviting', async () => {
-    fromMock.mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-2', contact: 'b@x.com', is_active: false, auth_user_id: null }))
-
-    const result = await bulkInviteEmployees(['emp-2'])
-
-    expect(inviteMock).not.toHaveBeenCalled()
-    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-2', error: 'Employee is inactive' }] })
-  })
-
-  it('skips and reports an already-invited employee without re-inviting', async () => {
-    fromMock.mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-3', contact: 'c@x.com', is_active: true, auth_user_id: 'auth-existing' }))
-
-    const result = await bulkInviteEmployees(['emp-3'])
-
-    expect(inviteMock).not.toHaveBeenCalled()
-    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-3', error: 'Employee already invited' }] })
-  })
-
-  it('reports a fetch error without throwing', async () => {
-    fromMock.mockReturnValueOnce(mockEmployeeFetch(null, { message: 'fetch failed' }))
-
-    const result = await bulkInviteEmployees(['emp-4'])
-
-    expect(result).toEqual({ invited: [], failed: [{ id: 'emp-4', error: 'fetch failed' }] })
-  })
-
-  it('continues processing remaining ids after one fails', async () => {
-    fromMock
-      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-5', contact: 'bad@x.com', is_active: false, auth_user_id: null }))
-      .mockReturnValueOnce(mockEmployeeFetch({ id: 'emp-6', contact: 'good@x.com', is_active: true, auth_user_id: null }))
-      .mockReturnValueOnce(mockUpdateOk())
-    inviteMock.mockResolvedValue({ data: { user: { id: 'auth-6' } }, error: null } as never)
-
-    const result = await bulkInviteEmployees(['emp-5', 'emp-6'])
-
-    expect(result).toEqual({
-      invited: ['emp-6'],
-      failed: [{ id: 'emp-5', error: 'Employee is inactive' }],
-    })
+  it('invites each employee by id only', async () => {
+    inviteMock.mockResolvedValue({ error: null })
+    await bulkInviteEmployees(['e-1', 'e-2'])
+    expect(inviteMock).toHaveBeenCalledWith('e-1')
+    expect(inviteMock).toHaveBeenCalledWith('e-2')
   })
 })
-
 describe('deleteEmployee', () => {
   const eqMock = vi.fn()
   const deleteMock = vi.fn()

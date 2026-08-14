@@ -154,24 +154,13 @@ export async function bulkInviteEmployees(ids: string[]): Promise<BulkInviteResu
   const failed: { id: string; error: string }[] = []
 
   for (const id of ids) {
-    try {
-      const { data: employee, error: fetchError } = await supabaseAdmin
-        .from('employee')
-        .select('id, contact, is_active, auth_user_id')
-        .eq('id', id)
-        .single()
-      if (fetchError) throw new Error(fetchError.message)
-      if (!employee) throw new Error('Employee not found')
-      if (!employee.is_active) throw new Error('Employee is inactive')
-      if (employee.auth_user_id) throw new Error('Employee already invited')
-
-      await inviteEmployee(id, employee.contact)
+    const { error } = await inviteEmployee(id)
+    if (error) {
+      failed.push({ id, error })
+    } else {
       invited.push(id)
-    } catch (err) {
-      failed.push({ id, error: err instanceof Error ? err.message : 'Invite failed' })
     }
   }
-
   return { invited, failed }
 }
 
