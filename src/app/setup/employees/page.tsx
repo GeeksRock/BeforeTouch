@@ -204,7 +204,7 @@ function EmployeesForm() {
           if (form.name || form.contact) {
             setShowConfirm(true)
           } else {
-            router.push(`/setup/rotation?company_id=${companyId}`)
+            router.push('/settings')
           }
         }}
         className="border border-black p-2 rounded w-full"
@@ -224,7 +224,7 @@ function EmployeesForm() {
                 Go back
               </button>
               <button
-                onClick={() => router.push(`/setup/rotation?company_id=${companyId}`)}
+                onClick={() => router.push('/settings')}
                 className="bg-black text-white px-4 py-2 rounded"
               >
                 Continue

@@ -64,10 +64,6 @@ describe('proxy', () => {
       expect(res.headers.get('location')).toContain('/login')
     })
 
-    it('redirects /setup/rotation to /login', async () => {
-      const res = await proxy(makeRequest('/setup/rotation'))
-      expect(res.headers.get('location')).toContain('/login')
-    })
 
     it('redirects /settings to /login', async () => {
       const res = await proxy(makeRequest('/settings'))
