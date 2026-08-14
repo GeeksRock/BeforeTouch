@@ -13,7 +13,7 @@ const GROUP = {
   rotation_length: '1_week',
   rotation_start_time: '08:00:00',
   has_backup: false,
-  company: { timezone: 'America/Chicago' },
+  company: { id: 'c-1', timezone: 'America/Chicago' },
   employee_rotation_group: [
     { employee_id: 'e-1', position: 1 },
     { employee_id: 'e-2', position: 2 },
@@ -54,7 +54,7 @@ describe('regenerateRotations', () => {
     const result = await regenerateRotations(new Date('2026-08-18T00:00:00Z'))
     expect(result.regenerated).toBe(1)
     expect(inserted).toHaveLength(2)
-    expect(inserted[0]).toMatchObject({ on_call_employee_id: 'e-2', rotation_group_id: 'g-1' })
+    expect(inserted[0]).toMatchObject({ on_call_employee_id: 'e-2', rotation_group_id: 'g-1', company_id: 'c-1' })
     expect(inserted[1]).toMatchObject({ on_call_employee_id: 'e-3' })
   })
 })

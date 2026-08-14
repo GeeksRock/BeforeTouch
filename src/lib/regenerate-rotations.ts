@@ -6,7 +6,7 @@ interface GroupRow {
   rotation_length: string
   rotation_start_time: string
   has_backup: boolean
-  company: { timezone: string }
+  company: { id: string; timezone: string }
   employee_rotation_group: { employee_id: string; position: number }[]
 }
 
@@ -21,7 +21,7 @@ interface RotationRow {
 export async function regenerateRotations(now: Date): Promise<{ regenerated: number }> {
   const { data: groupData, error: groupError } = await supabaseAdmin
     .from('rotation_group')
-    .select('id, rotation_length, rotation_start_time, has_backup, company(timezone), employee_rotation_group(employee_id, position)')
+    .select('id, rotation_length, rotation_start_time, has_backup, company(id, timezone), employee_rotation_group(employee_id, position)')
   if (groupError) throw new Error(groupError.message)
 
   const { data: rotData, error: rotError } = await supabaseAdmin
@@ -65,7 +65,7 @@ export async function regenerateRotations(now: Date): Promise<{ regenerated: num
     await supabaseAdmin.from('rotation').delete().eq('rotation_group_id', group.id)
     const { error: insertError } = await supabaseAdmin
       .from('rotation')
-      .insert(generated.map((r) => ({ ...r, rotation_group_id: group.id })))
+      .insert(generated.map((r) => ({ ...r, company_id: group.company.id, rotation_group_id: group.id })))
     if (insertError) throw new Error(insertError.message)
     regenerated++
   }
