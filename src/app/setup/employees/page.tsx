@@ -81,7 +81,7 @@ function EmployeesForm() {
     let newId: string
 
     try {
-      const result = await saveEmployee({ ...snapshot, company_id: companyId })
+      const result = await saveEmployee(snapshot)
       newId = result.id
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save employee')

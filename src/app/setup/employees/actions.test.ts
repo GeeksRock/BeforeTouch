@@ -15,57 +15,74 @@ vi.mock('@/lib/supabase-admin', () => ({
 const { saveEmployee, inviteEmployee } = await import('./actions')
 
 describe('saveEmployee', () => {
-  const insertMock = vi.fn()
-  const singleMock = vi.fn()
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-    const selectMock = vi.fn().mockReturnValue({ single: singleMock })
-    insertMock.mockReturnValue({ select: selectMock })
-    vi.mocked(supabaseAdmin.from).mockReturnValue({ insert: insertMock } as never)
-  })
-
+  const getUserMock = vi.fn()
+  const fromMock = vi.mocked(supabaseAdmin.from)
+  const CALLER = { id: 'admin-1', company_id: 'co-1' }
   const validData = {
     name: 'Jane Doe',
     contact: 'jane@example.com',
     can_volunteer: true,
     can_receive_volunteers: true,
-    company_id: 'company-123',
     is_active: true,
   }
-
-  it('calls supabase insert with all fields including is_active', async () => {
-    singleMock.mockResolvedValue({ data: { id: 'new-id' }, error: null })
-
+  function callerChain(result: unknown) {
+    const c: Record<string, unknown> = {}
+    for (const m of ['select', 'eq', 'limit']) c[m] = vi.fn().mockReturnValue(c)
+    c.maybeSingle = vi.fn().mockResolvedValue({ data: result, error: null })
+    return c
+  }
+  function insertChain(data: unknown, error: { message: string } | null = null) {
+    const c: Record<string, unknown> = {}
+    c.insert = vi.fn().mockReturnValue(c)
+    c.select = vi.fn().mockReturnValue(c)
+    c.single = vi.fn().mockResolvedValue({ data, error })
+    return c
+  }
+  beforeEach(() => {
+    vi.resetAllMocks()
+    getUserMock.mockResolvedValue({ data: { user: { id: 'auth-admin' } } })
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({
+      auth: { getUser: getUserMock },
+    } as never)
+  })
+  it('throws when not authenticated', async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } })
+    await expect(saveEmployee(validData)).rejects.toThrow('Not authenticated')
+  })
+  it('throws when the caller has no employee record', async () => {
+    fromMock.mockReturnValueOnce(callerChain(null) as never)
+    await expect(saveEmployee(validData)).rejects.toThrow('Employee record not found')
+  })
+  it('inserts with company_id derived from the caller', async () => {
+    const ins = insertChain({ id: 'new-id' })
+    fromMock
+      .mockReturnValueOnce(callerChain(CALLER) as never)
+      .mockReturnValueOnce(ins as never)
     await saveEmployee(validData)
-
-    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
-    expect(insertMock).toHaveBeenCalledWith([validData])
+    expect(ins.insert).toHaveBeenCalledWith([{ ...validData, company_id: 'co-1' }])
   })
-
   it('saves is_active: false when specified', async () => {
-    singleMock.mockResolvedValue({ data: { id: 'new-id' }, error: null })
-
+    const ins = insertChain({ id: 'new-id' })
+    fromMock
+      .mockReturnValueOnce(callerChain(CALLER) as never)
+      .mockReturnValueOnce(ins as never)
     await saveEmployee({ ...validData, is_active: false })
-
-    expect(insertMock).toHaveBeenCalledWith([{ ...validData, is_active: false }])
+    expect(ins.insert).toHaveBeenCalledWith([{ ...validData, is_active: false, company_id: 'co-1' }])
   })
-
   it('returns the id of the newly created employee', async () => {
-    singleMock.mockResolvedValue({ data: { id: 'new-emp-id' }, error: null })
-
+    fromMock
+      .mockReturnValueOnce(callerChain(CALLER) as never)
+      .mockReturnValueOnce(insertChain({ id: 'new-emp-id' }) as never)
     const result = await saveEmployee(validData)
-
     expect(result).toEqual({ id: 'new-emp-id' })
   })
-
-  it('throws when supabase returns an error', async () => {
-    singleMock.mockResolvedValue({ data: null, error: { message: 'insert failed' } })
-
+  it('throws when the insert fails', async () => {
+    fromMock
+      .mockReturnValueOnce(callerChain(CALLER) as never)
+      .mockReturnValueOnce(insertChain(null, { message: 'insert failed' }) as never)
     await expect(saveEmployee(validData)).rejects.toThrow('insert failed')
   })
 })
-
 describe('inviteEmployee', () => {
   const inviteMock = vi.mocked(supabaseAdmin.auth.admin.inviteUserByEmail)
   const getUserMock = vi.fn()

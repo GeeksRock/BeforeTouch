@@ -8,14 +8,23 @@ interface EmployeeForm {
   contact: string
   can_volunteer: boolean
   can_receive_volunteers: boolean
-  company_id: string
   is_active: boolean
 }
 
 export async function saveEmployee(data: EmployeeForm): Promise<{ id: string }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: caller } = await supabaseAdmin
+    .from('employee')
+    .select('id, company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (!caller) throw new Error('Employee record not found')
   const { data: result, error } = await supabaseAdmin
     .from('employee')
-    .insert([data])
+    .insert([{ ...data, company_id: caller.company_id }])
     .select('id')
     .single()
   if (error) throw new Error(error.message)
