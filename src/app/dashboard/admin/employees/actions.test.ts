@@ -35,55 +35,43 @@ function mockEmployeeQuery(rows: unknown[] | null, error: { message: string } | 
 describe('listEmployees', () => {
   const getUserMock = vi.fn()
   const fromMock = vi.fn()
-
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: getUserMock },
     } as never)
     vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
   })
-
   it('returns an error when not authenticated', async () => {
     getUserMock.mockResolvedValue({ data: { user: null } })
-
     const result = await listEmployees()
-
     expect(result).toEqual({ data: null, error: 'Not authenticated' })
   })
-
-  it('returns an error when no company is found', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  it('returns an error when the caller has no employee record', async () => {
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup(null) })
-
     const result = await listEmployees()
-
-    expect(result).toEqual({ data: null, error: 'No company found for this account' })
+    expect(result).toEqual({ data: null, error: 'Employee record not found' })
   })
-
-  it("returns employees for the user's company, ordered by name", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
-    const rows = [{ id: 'e1', name: 'Alice', contact: 'a@x.com', can_volunteer: true, can_receive_volunteers: true, is_active: true }]
-    fromMock.mockReturnValueOnce({ select: mockEmployeeQuery(rows) })
-
+  it('returns an error when the caller is not an admin', async () => {
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'emp-1', company_id: 'company-1', is_admin: false }) })
     const result = await listEmployees()
-
-    expect(fromMock).toHaveBeenCalledWith('employee')
+    expect(result).toEqual({ data: null, error: 'Not authorized' })
+  })
+  it("returns employees for the caller's company, ordered by name", async () => {
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'emp-1', company_id: 'company-1', is_admin: true }) })
+    const rows = [{ id: 'e1', name: 'Alice', contact: 'a@x.com', can_volunteer: true, can_receive_volunteers: true, is_active: true, auth_user_id: null }]
+    fromMock.mockReturnValueOnce({ select: mockEmployeeQuery(rows) })
+    const result = await listEmployees()
     expect(result).toEqual({ data: rows, error: null })
   })
-
-  it('returns the employee query error when it fails', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
+  it('returns an error when the employee query fails', async () => {
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'emp-1', company_id: 'company-1', is_admin: true }) })
     fromMock.mockReturnValueOnce({ select: mockEmployeeQuery(null, { message: 'query failed' }) })
-
     const result = await listEmployees()
-
     expect(result).toEqual({ data: null, error: 'query failed' })
   })
 })
-
 describe('updateEmployee', () => {
   const selectAfterUpdate = vi.fn()
   const updateEqMock = vi.fn()
