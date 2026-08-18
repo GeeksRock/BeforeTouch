@@ -184,7 +184,7 @@ function mockInsertEmployee(result: { id: string } | null, error: { message: str
 describe('addEmployee', () => {
   const getUserMock = vi.fn()
   const fromMock = vi.fn()
-
+  const CALLER = { id: 'emp-1', company_id: 'company-1', is_admin: true }
   const validForm = {
     name: 'Bob',
     contact: 'bob@x.com',
@@ -192,54 +192,44 @@ describe('addEmployee', () => {
     can_receive_volunteers: true,
     is_active: true,
   }
-
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(createSupabaseServerClient).mockResolvedValue({
       auth: { getUser: getUserMock },
     } as never)
     vi.mocked(supabaseAdmin.from).mockImplementation(fromMock as never)
+    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
   })
-
   it('returns an error when not authenticated', async () => {
     getUserMock.mockResolvedValue({ data: { user: null } })
-
     const result = await addEmployee(validForm)
-
     expect(result).toEqual({ data: null, error: 'Not authenticated' })
   })
-
-  it('returns an error when no company is found', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  it('returns an error when the caller has no employee record', async () => {
     fromMock.mockReturnValueOnce({ select: mockCompanyLookup(null) })
-
     const result = await addEmployee(validForm)
-
-    expect(result).toEqual({ data: null, error: 'No company found for this account' })
+    expect(result).toEqual({ data: null, error: 'Employee record not found' })
   })
-
-  it("inserts the employee for the user's company", async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
-    fromMock.mockReturnValueOnce({ insert: mockInsertEmployee({ id: 'emp-9' }) })
-
+  it('returns an error when the caller is not an admin', async () => {
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ ...CALLER, is_admin: false }) })
     const result = await addEmployee(validForm)
-
-    expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
+    expect(result).toEqual({ data: null, error: 'Not authorized' })
+  })
+  it("inserts the employee with the caller's company_id", async () => {
+    const insertMock = mockInsertEmployee({ id: 'emp-9' })
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup(CALLER) })
+    fromMock.mockReturnValueOnce({ insert: insertMock })
+    const result = await addEmployee(validForm)
+    expect(insertMock).toHaveBeenCalledWith([{ ...validForm, company_id: 'company-1' }])
     expect(result).toEqual({ data: { id: 'emp-9' }, error: null })
   })
-
   it('returns the insert error when it fails', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    fromMock.mockReturnValueOnce({ select: mockCompanyLookup({ id: 'company-1' }) })
+    fromMock.mockReturnValueOnce({ select: mockCompanyLookup(CALLER) })
     fromMock.mockReturnValueOnce({ insert: mockInsertEmployee(null, { message: 'insert failed' }) })
-
     const result = await addEmployee(validForm)
-
     expect(result).toEqual({ data: null, error: 'insert failed' })
   })
 })
-
 describe('bulkAddEmployees', () => {
   const getUserMock = vi.fn()
   const fromMock = vi.fn()

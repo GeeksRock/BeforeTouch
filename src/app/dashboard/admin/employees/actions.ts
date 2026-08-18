@@ -91,18 +91,18 @@ export async function addEmployee(form: AddEmployeeForm): Promise<{ data: { id: 
   const { data: { user } } = await client.auth.getUser()
   if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data: company, error: compError } = await supabaseAdmin
-    .from('company')
-    .select('id')
-    .eq('owner_id', user.id)
+  const { data: caller } = await supabaseAdmin
+    .from('employee')
+    .select('id, company_id, is_admin')
+    .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
-  if (compError) return { data: null, error: compError.message }
-  if (!company) return { data: null, error: 'No company found for this account' }
+  if (!caller) return { data: null, error: 'Employee record not found' }
+  if (!caller.is_admin) return { data: null, error: 'Not authorized' }
 
   const { data, error } = await supabaseAdmin
     .from('employee')
-    .insert([{ ...form, company_id: company.id }])
+    .insert([{ ...form, company_id: caller.company_id }])
     .select('id')
     .limit(1)
     .maybeSingle()
