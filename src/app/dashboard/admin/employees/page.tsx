@@ -125,6 +125,7 @@ export default function ManageEmployeesPage() {
     const { error } = await deleteEmployee(editingId)
     if (error) {
       setSaveError(error)
+      setConfirmingDelete(false)
       setSaving(false)
       return
     }
