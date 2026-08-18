@@ -176,6 +176,16 @@ export async function deleteEmployee(id: string): Promise<{ error: string | null
     .maybeSingle()
   if (!caller) throw new Error('Employee record not found')
   if (!caller.is_admin) return { error: 'Not authorized' }
+  if (caller.id === id) return { error: 'You cannot delete yourself' }
+  const { data: admins } = await supabaseAdmin
+    .from('employee')
+    .select('id')
+    .eq('company_id', caller.company_id)
+    .eq('is_admin', true)
+    .eq('is_active', true)
+  if (admins && admins.length === 1 && admins[0].id === id) {
+    return { error: 'Cannot delete the last active admin' }
+  }
   const { data, error } = await supabaseAdmin
     .from('employee')
     .delete()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, bulkInviteEmployees, type EmployeeRow } from './actions'
+import { listEmployees, updateEmployee, addEmployee, bulkAddEmployees, bulkInviteEmployees, deleteEmployee, type EmployeeRow } from './actions'
 import { parseEmployeeCsv } from './csv'
 
 interface EmployeeFormFields {
@@ -112,6 +112,21 @@ export default function ManageEmployeesPage() {
     setEditingId(null)
   }
 
+  async function handleDelete() {
+    if (!editingId) return
+    if (!window.confirm('Delete this employee? This cannot be undone.')) return
+    setSaving(true)
+    setSaveError(null)
+    const { error } = await deleteEmployee(editingId)
+    if (error) {
+      setSaveError(error)
+      setSaving(false)
+      return
+    }
+    setEmployees(prev => (prev ? prev.filter(emp => emp.id !== editingId) : prev))
+    setSaving(false)
+    setEditingId(null)
+  }
   function handleAddChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value, type, checked } = e.target
     setAddForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
@@ -295,6 +310,9 @@ export default function ManageEmployeesPage() {
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 
             <div className="flex gap-3 justify-end">
+              <button onClick={handleDelete} disabled={saving} className="border border-red-600 text-red-600 px-4 py-2 rounded mr-auto">
+                Delete
+              </button>
               <button onClick={() => setEditingId(null)} className="border border-black px-4 py-2 rounded">
                 Cancel
               </button>

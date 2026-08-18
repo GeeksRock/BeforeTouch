@@ -347,8 +347,36 @@ describe('deleteEmployee', () => {
     expect(result).toEqual({ error: 'Not authorized' })
     expect(deleteMock).not.toHaveBeenCalled()
   })
+  function mockAdminCount(admins: { id: string }[]) {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      then: (resolve: (v: unknown) => unknown) => resolve({ data: admins, error: null }),
+    } as never)
+  }
+  it('returns an error when an admin tries to delete themself', async () => {
+    mockCaller()
+    const result = await deleteEmployee('emp-caller')
+    expect(result).toEqual({ error: 'You cannot delete yourself' })
+    expect(deleteMock).not.toHaveBeenCalled()
+  })
+  it('returns an error when deleting the last active admin', async () => {
+    mockCaller()
+    mockAdminCount([{ id: 'emp-1' }])
+    const result = await deleteEmployee('emp-1')
+    expect(result).toEqual({ error: 'Cannot delete the last active admin' })
+    expect(deleteMock).not.toHaveBeenCalled()
+  })
+  it('deletes an admin when another active admin remains', async () => {
+    mockCaller()
+    mockAdminCount([{ id: 'emp-caller' }, { id: 'emp-1' }])
+    mockDeleteChain({ data: [{ id: 'emp-1' }], error: null })
+    const result = await deleteEmployee('emp-1')
+    expect(result).toEqual({ error: null })
+  })
   it('deletes scoped by id and company_id', async () => {
     mockCaller()
+    mockAdminCount([{ id: 'emp-caller' }, { id: 'other-admin' }])
     mockDeleteChain({ data: [{ id: 'emp-1' }], error: null })
     const result = await deleteEmployee('emp-1')
     expect(vi.mocked(supabaseAdmin.from)).toHaveBeenCalledWith('employee')
@@ -358,12 +386,14 @@ describe('deleteEmployee', () => {
   })
   it('returns an error when no employee matches id and company', async () => {
     mockCaller()
+    mockAdminCount([{ id: 'emp-caller' }, { id: 'other-admin' }])
     mockDeleteChain({ data: [], error: null })
     const result = await deleteEmployee('emp-other-co')
     expect(result).toEqual({ error: 'Employee not found' })
   })
   it('returns the error when delete fails', async () => {
     mockCaller()
+    mockAdminCount([{ id: 'emp-caller' }, { id: 'other-admin' }])
     mockDeleteChain({ data: null, error: { message: 'delete failed' } })
     const result = await deleteEmployee('emp-1')
     expect(result).toEqual({ error: 'delete failed' })
