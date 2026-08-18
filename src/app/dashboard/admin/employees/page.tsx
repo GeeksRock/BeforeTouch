@@ -29,6 +29,7 @@ export default function ManageEmployeesPage() {
   const [editForm, setEditForm] = useState<EmployeeFormFields>(emptyForm())
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState<EmployeeFormFields>(emptyForm())
@@ -86,6 +87,7 @@ export default function ManageEmployeesPage() {
       is_active: emp.is_active,
     })
     setSaveError(null)
+    setConfirmingDelete(false)
   }
 
   function handleEditChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,7 +116,10 @@ export default function ManageEmployeesPage() {
 
   async function handleDelete() {
     if (!editingId) return
-    if (!window.confirm('Delete this employee? This cannot be undone.')) return
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      return
+    }
     setSaving(true)
     setSaveError(null)
     const { error } = await deleteEmployee(editingId)
@@ -310,10 +315,10 @@ export default function ManageEmployeesPage() {
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 
             <div className="flex gap-3 justify-end">
-              <button onClick={handleDelete} disabled={saving} className="border border-red-600 text-red-600 px-4 py-2 rounded mr-auto">
-                Delete
+              <button onClick={handleDelete} disabled={saving} className={confirmingDelete ? 'bg-red-600 text-white px-4 py-2 rounded mr-auto' : 'border border-red-600 text-red-600 px-4 py-2 rounded mr-auto'}>
+                {confirmingDelete ? 'Confirm delete?' : 'Delete'}
               </button>
-              <button onClick={() => setEditingId(null)} className="border border-black px-4 py-2 rounded">
+              <button onClick={() => { setConfirmingDelete(false); setEditingId(null) }} className="border border-black px-4 py-2 rounded">
                 Cancel
               </button>
               <button onClick={handleSaveEdit} disabled={saving} className="bg-black text-white px-4 py-2 rounded">
