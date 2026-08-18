@@ -19,16 +19,18 @@ vi.mock('@/lib/supabase-admin', () => ({
 import { fetchAdminDashboard } from './actions'
 
 describe('fetchAdminDashboard', () => {
+  const caller = { id: 'emp-1', company_id: 'co-1', is_admin: true }
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
   })
 
   it('returns the company state', async () => {
+    const employeeQueue = [builder(caller), builder([])]
     mockFrom.mockImplementation((table: string) => {
+      if (table === 'employee') return employeeQueue.shift()
       if (table === 'company') return builder({ id: 'co-1', name: 'Acme HVAC', state: 'setup' })
       if (table === 'rotation') return builder(null)
-      if (table === 'employee') return builder([])
       throw new Error(`unexpected table: ${table}`)
     })
 
@@ -47,26 +49,50 @@ describe('fetchAdminDashboard', () => {
     expect(error).toBe('Not authenticated')
   })
 
-  it('returns an error when the account owns no company', async () => {
+  it('returns an error when the caller has no employee record', async () => {
     mockFrom.mockImplementation(() => builder(null))
 
     const { data, error } = await fetchAdminDashboard()
 
     expect(data).toBeNull()
-    expect(error).toBe('No company found for this account')
+    expect(error).toBe('Employee record not found')
+  })
+
+  it('returns an error when the caller is not an admin', async () => {
+    mockFrom.mockImplementation(() => builder({ ...caller, is_admin: false }))
+
+    const { data, error } = await fetchAdminDashboard()
+
+    expect(data).toBeNull()
+    expect(error).toBe('Not authorized')
+  })
+
+  it('returns an error when the company record is missing', async () => {
+    const employeeQueue = [builder(caller)]
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'employee') return employeeQueue.shift()
+      if (table === 'company') return builder(null)
+      throw new Error(`unexpected table: ${table}`)
+    })
+
+    const { data, error } = await fetchAdminDashboard()
+
+    expect(data).toBeNull()
+    expect(error).toBe('Company not found')
   })
 
   it('returns the soonest upcoming rotation for each group', async () => {
+    const employeeQueue = [builder(caller), builder([
+      { id: 'e-1', name: 'Ana', is_active: true },
+      { id: 'e-3', name: 'Cy', is_active: true },
+    ])]
     mockFrom.mockImplementation((table: string) => {
+      if (table === 'employee') return employeeQueue.shift()
       if (table === 'company') return builder({ id: 'co-1', name: 'Acme HVAC', state: 'live' })
       if (table === 'rotation') return builder([
         { id: 'r-2', on_call_employee_id: 'e-2', start_datetime: '2026-08-17T13:00:00+00:00', end_datetime: '2026-08-24T13:00:00+00:00', rotation_group_id: 'g-1', rotation_group: { name: 'Service' } },
         { id: 'r-1', on_call_employee_id: 'e-1', start_datetime: '2026-08-10T13:00:00+00:00', end_datetime: '2026-08-17T13:00:00+00:00', rotation_group_id: 'g-1', rotation_group: { name: 'Service' } },
         { id: 'r-3', on_call_employee_id: 'e-3', start_datetime: '2026-08-10T11:00:00+00:00', end_datetime: '2026-09-07T11:00:00+00:00', rotation_group_id: 'g-2', rotation_group: { name: 'Install' } },
-      ])
-      if (table === 'employee') return builder([
-        { id: 'e-1', name: 'Ana', is_active: true },
-        { id: 'e-3', name: 'Cy', is_active: true },
       ])
       throw new Error(`unexpected table: ${table}`)
     })
@@ -84,16 +110,18 @@ describe('fetchAdminDashboard', () => {
     })
   })
   it('returns an empty list when no rotations exist', async () => {
+    const employeeQueue = [builder(caller), builder([])]
     mockFrom.mockImplementation((table: string) => {
+      if (table === 'employee') return employeeQueue.shift()
       if (table === 'company') return builder({ id: 'co-1', name: 'Acme HVAC', state: 'setup' })
       if (table === 'rotation') return builder([])
-      if (table === 'employee') return builder([])
       throw new Error(`unexpected table: ${table}`)
     })
     const { data } = await fetchAdminDashboard()
     expect(data!.rotations).toEqual([])
   })
 })
+
 
 function builder(data: unknown) {
   const chain: Record<string, unknown> = {}
