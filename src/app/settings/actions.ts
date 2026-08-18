@@ -296,3 +296,26 @@ export async function moveRotationGroupMember(groupId: string, employeeId: strin
   if (upsertError) return { error: upsertError.message }
   return { error: null }
 }
+
+export async function deleteRotationGroup(id: string): Promise<{ error: string | null }> {
+  const client = await createSupabaseServerClient()
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: caller, error: callerError } = await supabaseAdmin
+    .from('employee')
+    .select('company_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+  if (callerError) return { error: callerError.message }
+  if (!caller) return { error: 'Employee record not found' }
+  const { data, error } = await supabaseAdmin
+    .from('rotation_group')
+    .delete()
+    .eq('id', id)
+    .eq('company_id', caller.company_id)
+    .select('id')
+  if (error) return { error: error.message }
+  if (!data || data.length === 0) return { error: 'Rotation group not found' }
+  return { error: null }
+}

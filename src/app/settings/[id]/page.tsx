@@ -2,7 +2,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember } from '../actions'
+import { fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember, deleteRotationGroup } from '../actions'
 import type { RosterMember, RotationGroupForm, AvailableEmployee } from '../actions'
 import RotationGroupFormFields, { defaultRotationGroupForm } from '@/components/RotationGroupFormFields'
 export default function EditRotationGroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,9 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
   const [addError, setAddError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [moving, setMoving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const router = useRouter()
   useEffect(() => {
     fetchRotationGroup(id).then(({ data, error }) => {
@@ -61,6 +64,22 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
     if (error) setAddError(error)
     else await loadMembership()
     setRemoving(null)
+  }
+  async function handleDelete() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      return
+    }
+    setDeleting(true)
+    setDeleteError(null)
+    const { error } = await deleteRotationGroup(id)
+    if (error) {
+      setDeleteError(error)
+      setConfirmingDelete(false)
+      setDeleting(false)
+      return
+    }
+    router.push('/settings')
   }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -153,6 +172,19 @@ export default function EditRotationGroupPage({ params }: { params: Promise<{ id
           </div>
         )}
         {addError && <p className="text-red-600 mt-3">{addError}</p>}
+      </section>
+      <section className="mt-10 border-t pt-6">
+        <h2 className="text-xl font-bold mb-2">Delete this group</h2>
+        <p className="text-gray-600 mb-4">Removes the group, its roster, and its scheduled rotations. This cannot be undone.</p>
+        {deleteError && <p className="text-red-600 mb-3">{deleteError}</p>}
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className={confirmingDelete ? 'bg-red-600 text-white px-4 py-2 rounded' : 'border border-red-600 text-red-600 px-4 py-2 rounded'}
+        >
+          {deleting ? 'Deleting\u2026' : confirmingDelete ? 'Confirm delete?' : 'Delete group'}
+        </button>
       </section>
     </main>
   )

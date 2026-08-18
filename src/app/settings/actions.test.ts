@@ -12,7 +12,7 @@ vi.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember } = await import('./actions')
+const { fetchRotationGroups, createRotationGroup, fetchRotationGroup, updateRotationGroup, fetchRotationGroupRoster, fetchAvailableEmployees, addRotationGroupMember, removeRotationGroupMember, moveRotationGroupMember, deleteRotationGroup } = await import('./actions')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
   const result = { data, error }
@@ -412,5 +412,43 @@ describe('moveRotationGroupMember', () => {
       .mockReturnValueOnce(makeQueryBuilder(null, { message: 'upsert failed' }) as never)
     const result = await moveRotationGroupMember('rg-1', 'emp-2', 'up')
     expect(result).toEqual({ error: 'upsert failed' })
+  })
+})
+describe('deleteRotationGroup', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+  it('returns an error when not authenticated', async () => {
+    mockAuthAs(null)
+    const result = await deleteRotationGroup('rg-1')
+    expect(result).toEqual({ error: 'Not authenticated' })
+  })
+  it('returns an error when the caller has no employee record', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
+    const result = await deleteRotationGroup('rg-1')
+    expect(result).toEqual({ error: 'Employee record not found' })
+  })
+  it('deletes scoped by id and company_id', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    const deleteBuilder = makeQueryBuilder([{ id: 'rg-1' }])
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(deleteBuilder as never)
+    const result = await deleteRotationGroup('rg-1')
+    expect(deleteBuilder.delete).toHaveBeenCalled()
+    expect(deleteBuilder.eq).toHaveBeenCalledWith('id', 'rg-1')
+    expect(deleteBuilder.eq).toHaveBeenCalledWith('company_id', 'co-1')
+    expect(result).toEqual({ error: null })
+  })
+  it('returns an error when no group matches id and company', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder([]) as never)
+    const result = await deleteRotationGroup('rg-other-co')
+    expect(result).toEqual({ error: 'Rotation group not found' })
+  })
+  it('returns the error message when the delete fails', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(employeeRow) as never)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null, { message: 'delete failed' }) as never)
+    const result = await deleteRotationGroup('rg-1')
+    expect(result).toEqual({ error: 'delete failed' })
   })
 })
