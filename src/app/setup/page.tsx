@@ -8,14 +8,15 @@ export default async function SetupPage() {
   const { data: { user } } = await client.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: company, error } = await supabaseAdmin
-    .from('company')
+  const { data: employee, error } = await supabaseAdmin
+    .from('employee')
     .select('id')
-    .eq('owner_id', user.id)
+    .eq('auth_user_id', user.id)
+    .limit(1)
     .maybeSingle()
   if (error) throw new Error(error.message)
 
-  if (company) redirect('/dashboard/admin')
+  if (employee) redirect('/dashboard/admin')
 
   return <CompanyForm />
 }
