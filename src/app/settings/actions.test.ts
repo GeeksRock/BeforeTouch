@@ -34,7 +34,7 @@ function makeQueryBuilder(data: unknown, error: unknown = null) {
 }
 
 const userId = 'user-1'
-const employeeRow = { company_id: 'co-1' }
+const employeeRow = { company_id: 'co-1', is_admin: true }
 function mockAuthAs(id: string | null) {
   const getUserMock = vi.fn().mockResolvedValue({
     data: { user: id ? { id } : null },
@@ -450,5 +450,36 @@ describe('deleteRotationGroup', () => {
     vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null, { message: 'delete failed' }) as never)
     const result = await deleteRotationGroup('rg-1')
     expect(result).toEqual({ error: 'delete failed' })
+  })
+})
+describe('non-admin authorization', () => {
+  const nonAdminRow = { company_id: 'co-1', is_admin: false }
+  const groupForm = {
+    name: 'Night shift',
+    rotation_length: '1_week',
+    rotation_start_day: 'Monday',
+    rotation_start_time: '09:00',
+    has_backup: false,
+    allowed_volunteer_types: ['full_rotation'],
+    approval_approver: 'on_call' as const,
+  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthAs(userId)
+  })
+  it('blocks a non-admin from deleting a rotation group', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(nonAdminRow) as never)
+    const result = await deleteRotationGroup('rg-1')
+    expect(result).toEqual({ error: 'Not authorized' })
+  })
+  it('blocks a non-admin from updating a rotation group', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(nonAdminRow) as never)
+    const result = await updateRotationGroup('rg-1', groupForm)
+    expect(result).toEqual({ error: 'Not authorized' })
+  })
+  it('blocks a non-admin from listing rotation groups', async () => {
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(nonAdminRow) as never)
+    const result = await fetchRotationGroups()
+    expect(result).toEqual({ data: null, error: 'Not authorized' })
   })
 })

@@ -14,12 +14,13 @@ export async function fetchRotationGroups(): Promise<{ data: RotationGroupSummar
   if (!user) return { data: null, error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
+  if (!employee.is_admin) return { data: null, error: 'Not authorized' }
   const { data: groups, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id, name')
@@ -43,12 +44,13 @@ export async function createRotationGroup(data: RotationGroupForm): Promise<{ er
   if (!user) return { error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { error: empError.message }
   if (!employee) return { error: 'Employee record not found' }
+  if (!employee.is_admin) return { error: 'Not authorized' }
   const { error: insertError } = await supabaseAdmin
     .from('rotation_group')
     .insert([{ ...data, company_id: employee.company_id }])
@@ -62,12 +64,13 @@ export async function fetchRotationGroup(id: string): Promise<{ data: RotationGr
   if (!user) return { data: null, error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
+  if (!employee.is_admin) return { data: null, error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('name, rotation_length, rotation_start_day, rotation_start_time, has_backup, allowed_volunteer_types, approval_approver')
@@ -85,12 +88,13 @@ export async function updateRotationGroup(id: string, data: RotationGroupForm): 
   if (!user) return { error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { error: empError.message }
   if (!employee) return { error: 'Employee record not found' }
+  if (!employee.is_admin) return { error: 'Not authorized' }
   const { error: updateError } = await supabaseAdmin
     .from('rotation_group')
     .update(data)
@@ -112,12 +116,13 @@ export async function fetchRotationGroupRoster(id: string): Promise<{ data: Rost
   if (!user) return { data: null, error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
+  if (!employee.is_admin) return { data: null, error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id')
@@ -149,12 +154,13 @@ export async function fetchAvailableEmployees(groupId: string): Promise<{ data: 
   if (!user) return { data: null, error: 'Not authenticated' }
   const { data: employee, error: empError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (empError) return { data: null, error: empError.message }
   if (!employee) return { data: null, error: 'Employee record not found' }
+  if (!employee.is_admin) return { data: null, error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id')
@@ -186,12 +192,13 @@ export async function addRotationGroupMember(groupId: string, employeeId: string
   if (!user) return { error: 'Not authenticated' }
   const { data: caller, error: callerError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (callerError) return { error: callerError.message }
   if (!caller) return { error: 'Employee record not found' }
+  if (!caller.is_admin) return { error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id')
@@ -231,12 +238,13 @@ export async function removeRotationGroupMember(groupId: string, employeeId: str
   if (!user) return { error: 'Not authenticated' }
   const { data: caller, error: callerError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (callerError) return { error: callerError.message }
   if (!caller) return { error: 'Employee record not found' }
+  if (!caller.is_admin) return { error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id')
@@ -259,12 +267,13 @@ export async function moveRotationGroupMember(groupId: string, employeeId: strin
   if (!user) return { error: 'Not authenticated' }
   const { data: caller, error: callerError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (callerError) return { error: callerError.message }
   if (!caller) return { error: 'Employee record not found' }
+  if (!caller.is_admin) return { error: 'Not authorized' }
   const { data: group, error: groupError } = await supabaseAdmin
     .from('rotation_group')
     .select('id')
@@ -303,12 +312,13 @@ export async function deleteRotationGroup(id: string): Promise<{ error: string |
   if (!user) return { error: 'Not authenticated' }
   const { data: caller, error: callerError } = await supabaseAdmin
     .from('employee')
-    .select('company_id')
+    .select('company_id, is_admin')
     .eq('auth_user_id', user.id)
     .limit(1)
     .maybeSingle()
   if (callerError) return { error: callerError.message }
   if (!caller) return { error: 'Employee record not found' }
+  if (!caller.is_admin) return { error: 'Not authorized' }
   const { data, error } = await supabaseAdmin
     .from('rotation_group')
     .delete()
