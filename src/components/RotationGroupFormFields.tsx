@@ -84,7 +84,7 @@ export default function RotationGroupFormFields({ form, setForm, onSubmit, saveE
         ))}
       </fieldset>
       <fieldset className="flex flex-col gap-2">
-        <legend className="font-medium">Allowed volunteer types</legend>
+        <legend className="font-medium">Allowed volunteer types <span className="font-normal text-gray-600">(pick at least one)</span></legend>
         {['full_rotation', 'individual_days', 'hour_blocks'].map(type => (
           <label key={type} className="flex items-center gap-2">
             <input type="checkbox" checked={form.allowed_volunteer_types.includes(type)}
@@ -95,7 +95,7 @@ export default function RotationGroupFormFields({ form, setForm, onSubmit, saveE
         ))}
       </fieldset>
       {saveError && <p className="text-red-600">{saveError}</p>}
-      <button type="submit" className="bg-black text-white p-2 rounded mt-4">
+      <button type="submit" disabled={form.allowed_volunteer_types.length === 0} className="bg-black text-white p-2 rounded mt-4 disabled:opacity-50">
         {submitLabel}
       </button>
       <Link href="/settings" className="underline text-center">Cancel</Link>
