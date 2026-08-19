@@ -92,6 +92,22 @@ describe('fetchDashboard', () => {
     })
   })
 
+  describe('rotation query predicate', () => {
+    it('selects the next rotation that has not ended, without requiring it to have started', async () => {
+      mockAuthAs(userId)
+      const rotationBuilder = makeQueryBuilder(rotation)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder(employee) as never)
+        .mockReturnValueOnce(rotationBuilder as never)
+        .mockReturnValueOnce(makeQueryBuilder(volunteers) as never)
+      vi.mocked(supabaseAdmin.from)
+        .mockReturnValueOnce(makeQueryBuilder({ approval_approver: 'on_call' }) as never)
+      await fetchDashboard()
+      expect(rotationBuilder.lte).not.toHaveBeenCalled()
+      expect(rotationBuilder.order).toHaveBeenCalledWith('start_datetime', { ascending: true })
+    })
+  })
+
   describe('when the current user is on call', () => {
     beforeEach(() => {
       mockAuthAs(userId)

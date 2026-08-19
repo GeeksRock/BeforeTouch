@@ -177,7 +177,9 @@ function NotOnCallView({ data }: { data: Extract<DashboardData, { type: 'not-on-
       <h1 className="text-2xl font-bold mb-6">On-call dashboard</h1>
 
       <section className="border rounded p-4 mb-6">
-        <h2 className="font-semibold mb-2">Currently on call</h2>
+        <h2 className="font-semibold mb-2">
+          {new Date(rotation.start_datetime) > new Date() ? 'Next on call' : 'Currently on call'}
+        </h2>
         <p className="text-sm font-medium">{onCallEmployeeName}</p>
         <p className="text-sm">From: {new Date(rotation.start_datetime).toLocaleString()}</p>
         <p className="text-sm">To: {new Date(rotation.end_datetime).toLocaleString()}</p>
@@ -291,7 +293,9 @@ function AdminView({
       <h1 className="text-2xl font-bold mb-6">Admin view</h1>
 
       <section className="border rounded p-4 mb-6">
-        <h2 className="font-semibold mb-2">Active rotation</h2>
+        <h2 className="font-semibold mb-2">
+          {new Date(rotation.start_datetime) > new Date() ? 'Upcoming rotation' : 'Active rotation'}
+        </h2>
         <p className="text-sm">From: {new Date(rotation.start_datetime).toLocaleString()}</p>
         <p className="text-sm">To: {new Date(rotation.end_datetime).toLocaleString()}</p>
       </section>

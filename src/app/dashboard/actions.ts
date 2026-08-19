@@ -76,9 +76,8 @@ export async function fetchDashboard(): Promise<{ data: DashboardData | null; er
     .from('rotation')
     .select('id, on_call_employee_id, start_datetime, end_datetime, rotation_group_id')
     .eq('company_id', employee.company_id)
-    .lte('start_datetime', new Date().toISOString())
     .gte('end_datetime', new Date().toISOString())
-    .order('start_datetime', { ascending: false })
+    .order('start_datetime', { ascending: true })
     .limit(1)
     .maybeSingle()
   if (rotError) return { data: null, error: rotError.message }
