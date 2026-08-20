@@ -165,7 +165,7 @@ export async function submitVolunteerOffer(data: VolunteerOfferInput): Promise<{
 
   const record: Record<string, unknown> = {
     rotation_id: data.rotation_id,
-    volunteer_employee_id: userId,
+    volunteer_employee_id: employee.id,
     offer_type: data.offer_type,
     status: 'pending',
   }

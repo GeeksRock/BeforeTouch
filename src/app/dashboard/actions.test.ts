@@ -350,6 +350,14 @@ describe('submitVolunteerOffer', () => {
     ])
   })
 
+  it('stores the employee id, not the auth user id, as the volunteer', async () => {
+    mockAuthAs('auth-user-999')
+    insertMock.mockResolvedValue({ error: null })
+    await submitVolunteerOffer({ rotation_id: 'rot-1', offer_type: 'full_rotation' })
+    expect(insertMock).toHaveBeenCalledWith([
+      expect.objectContaining({ volunteer_employee_id: employee.id }),
+    ])
+  })
   it('includes start_datetime and end_datetime in the insert when provided', async () => {
     insertMock.mockResolvedValue({ error: null })
 
