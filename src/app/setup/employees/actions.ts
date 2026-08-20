@@ -56,6 +56,7 @@ export async function inviteEmployee(employeeId: string): Promise<{ error: strin
   if (target.auth_user_id) return { error: 'Employee already invited' }
   const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     target.contact,
+    { redirectTo: 'https://beforetouch.com/set-password' },
   )
   if (inviteError) return { error: inviteError.message }
   const { error: updateError } = await supabaseAdmin

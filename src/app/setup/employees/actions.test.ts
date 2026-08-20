@@ -162,7 +162,7 @@ describe('inviteEmployee', () => {
     const result = await inviteEmployee('emp-1')
     expect(result).toEqual({ error: 'Employee already invited' })
   })
-  it('invites using the employee record email and links the auth user', async () => {
+  it('invites using the employee record email, points at set-password, and links the auth user', async () => {
     const update = updateChain()
     fromMock
       .mockReturnValueOnce(selectChain(CALLER) as never)
@@ -170,7 +170,9 @@ describe('inviteEmployee', () => {
       .mockReturnValueOnce(update as never)
     inviteMock.mockResolvedValue({ data: { user: { id: 'auth-new' } }, error: null } as never)
     const result = await inviteEmployee('emp-1')
-    expect(inviteMock).toHaveBeenCalledWith('jane@example.com')
+    expect(inviteMock).toHaveBeenCalledWith('jane@example.com', {
+      redirectTo: 'https://beforetouch.com/set-password',
+    })
     expect(update.update).toHaveBeenCalledWith({ auth_user_id: 'auth-new' })
     expect(update.eq).toHaveBeenCalledWith('id', 'emp-1')
     expect(result).toEqual({ error: null })
