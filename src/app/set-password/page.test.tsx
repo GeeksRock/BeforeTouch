@@ -3,12 +3,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+const setSession = vi.fn()
 const getSession = vi.fn()
 const updateUser = vi.fn()
 const replace = vi.fn()
 
 vi.mock('@supabase/ssr', () => ({
-  createBrowserClient: () => ({ auth: { getSession, updateUser } }),
+  createBrowserClient: () => ({ auth: { setSession, getSession, updateUser } }),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -16,21 +17,47 @@ vi.mock('next/navigation', () => ({
 
 import SetPasswordPage from './page'
 
+const TOKENS = '#access_token=abc123&refresh_token=xyz789&type=invite'
+
 beforeEach(() => {
   vi.clearAllMocks()
-  getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } })
+  window.location.hash = TOKENS
+  setSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null })
+  getSession.mockResolvedValue({ data: { session: { user: { id: 'other' } } } })
   updateUser.mockResolvedValue({ error: null })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.location.hash = ''
+})
 
 describe('SetPasswordPage', () => {
-  it('shows the password form when the invite link established a session', async () => {
+  it('establishes the session from the tokens in the fragment', async () => {
     render(<SetPasswordPage />)
     expect(await screen.findByLabelText(/password/i)).toBeDefined()
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'abc123',
+      refresh_token: 'xyz789',
+    })
   })
 
-  it('shows an error and no form when there is no session', async () => {
-    getSession.mockResolvedValue({ data: { session: null } })
+  it('shows an error and no form when the fragment has no tokens', async () => {
+    window.location.hash = '#error=access_denied&error_code=otp_expired'
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
+    expect(screen.queryByLabelText(/password/i)).toBeNull()
+  })
+
+  it('never falls back to an existing signed-in session', async () => {
+    window.location.hash = ''
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
+    expect(getSession).not.toHaveBeenCalled()
+    expect(setSession).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when the tokens are rejected', async () => {
+    setSession.mockResolvedValue({ data: { session: null }, error: { message: 'bad token' } })
     render(<SetPasswordPage />)
     expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
     expect(screen.queryByLabelText(/password/i)).toBeNull()

@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
-
 export default function SetPasswordPage() {
   const router = useRouter()
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { detectSessionInUrl: false } },
     ),
   )
   const [status, setStatus] = useState<'checking' | 'ready' | 'invalid'>('checking')
@@ -18,9 +18,18 @@ export default function SetPasswordPage() {
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setStatus(data.session ? 'ready' : 'invalid')
-    })
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+    if (!access_token || !refresh_token) {
+      setStatus('invalid')
+      return
+    }
+    supabase.auth
+      .setSession({ access_token, refresh_token })
+      .then(({ error: sessionError }) => {
+        setStatus(sessionError ? 'invalid' : 'ready')
+      })
   }, [supabase])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
