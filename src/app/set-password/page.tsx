@@ -13,7 +13,7 @@ export default function SetPasswordPage() {
     ),
   )
   const [status, setStatus] = useState<'checking' | 'ready' | 'invalid'>('checking')
-  const [email, setEmail] = useState<string | null>(null)
+  const [verifiedUser, setVerifiedUser] = useState<{ id: string; email: string | null } | null>(null)
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -32,7 +32,12 @@ export default function SetPasswordPage() {
           setStatus('invalid')
           return
         }
-        setEmail(data.session?.user.email ?? null)
+        const user = data.session?.user
+        if (!user) {
+          setStatus('invalid')
+          return
+        }
+        setVerifiedUser({ id: user.id, email: user.email ?? null })
         setStatus('ready')
       })
   }, [supabase])
@@ -41,6 +46,12 @@ export default function SetPasswordPage() {
     e.preventDefault()
     setPending(true)
     setError(null)
+    const { data: userData } = await supabase.auth.getUser()
+    if (!verifiedUser || userData.user?.id !== verifiedUser.id) {
+      setError('Your invite session is no longer valid. Ask your administrator for a new invite.')
+      setPending(false)
+      return
+    }
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) {
       setError(updateError.message)
@@ -68,7 +79,7 @@ export default function SetPasswordPage() {
   return (
     <main className="max-w-sm mx-auto p-8">
       <h1 className="text-2xl font-bold mb-2">Set your password</h1>
-      {email && <p className="text-sm mb-6">Setting a password for {email}</p>}
+      {verifiedUser?.email && <p className="text-sm mb-6">Setting a password for {verifiedUser.email}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1">
           Password

@@ -6,10 +6,11 @@ import userEvent from '@testing-library/user-event'
 const verifyOtp = vi.fn()
 const getSession = vi.fn()
 const updateUser = vi.fn()
+const getUser = vi.fn()
 const replace = vi.fn()
 
 vi.mock('@supabase/ssr', () => ({
-  createBrowserClient: () => ({ auth: { verifyOtp, getSession, updateUser } }),
+  createBrowserClient: () => ({ auth: { verifyOtp, getSession, updateUser, getUser } }),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -26,6 +27,7 @@ beforeEach(() => {
   })
   getSession.mockResolvedValue({ data: { session: { user: { id: 'other' } } } })
   updateUser.mockResolvedValue({ error: null })
+  getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
 })
 afterEach(() => {
   cleanup()
@@ -33,6 +35,25 @@ afterEach(() => {
 })
 
 describe('SetPasswordPage', () => {
+  it('does not render the form when verification returns no session', async () => {
+    verifyOtp.mockResolvedValue({ data: { session: null }, error: null })
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
+    expect(screen.queryByLabelText(/password/i)).toBeNull()
+  })
+
+  it('refuses to update when the session is not the verified user', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'someone-else' } }, error: null })
+    render(<SetPasswordPage />)
+    await userEvent.type(await screen.findByLabelText(/password/i), 'newpass123')
+    await userEvent.click(screen.getByRole('button', { name: /set password/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/no longer valid/i)).toBeDefined()
+    })
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+  })
+
   it('verifies the token hash from the fragment', async () => {
     render(<SetPasswordPage />)
     expect(await screen.findByLabelText(/password/i)).toBeDefined()
