@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchIsAdmin } from './nav-actions'
-import { getNavLinks } from './nav-links'
+import { fetchNavRole } from './nav-actions'
+import { getNavLinks, type NavRole } from './nav-links'
 import { supabase } from '@/lib/supabase'
 
 export default function Nav() {
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [role, setRole] = useState<NavRole | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    fetchIsAdmin().then(setIsAdmin)
+    fetchNavRole().then(setRole)
   }, [])
 
   async function handleLogout() {
@@ -20,9 +20,11 @@ export default function Nav() {
     router.push('/login')
   }
 
+  if (!role) return null
+
   return (
     <nav className="bg-gray-900 text-white px-6 py-3 flex flex-wrap items-center gap-6">
-      {getNavLinks(isAdmin).map(({ href, label }) => (
+      {getNavLinks(role).map(({ href, label }) => (
         <Link key={href} href={href} className="text-sm font-medium hover:text-gray-300 transition-colors">
           {label}
         </Link>

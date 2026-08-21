@@ -12,7 +12,7 @@ vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(),
 }))
 
-const { fetchIsAdmin } = await import('./nav-actions')
+const { fetchNavRole } = await import('./nav-actions')
 const { getNavLinks } = await import('./nav-links')
 
 function makeQueryBuilder(data: unknown, error: unknown = null) {
@@ -43,46 +43,46 @@ function mockAuthAs(id: string | null) {
   )
 }
 
-describe('fetchIsAdmin', () => {
+describe('fetchNavRole', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('returns true when the employee is_admin flag is true', async () => {
+  it('returns admin when the employee is_admin flag is true', async () => {
     mockAuthAs(userId)
     vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: true }) as never)
-    expect(await fetchIsAdmin()).toBe(true)
+    expect(await fetchNavRole()).toBe('admin')
   })
 
-  it('returns false when the employee is_admin flag is false', async () => {
+  it('returns employee when the employee is_admin flag is false', async () => {
     mockAuthAs(userId)
     vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder({ is_admin: false }) as never)
-    expect(await fetchIsAdmin()).toBe(false)
+    expect(await fetchNavRole()).toBe('employee')
   })
 
-  it('returns false when not authenticated', async () => {
+  it('returns null when not authenticated', async () => {
     mockAuthAs(null)
-    expect(await fetchIsAdmin()).toBe(false)
+    expect(await fetchNavRole()).toBe(null)
   })
 
-  it('returns false when the employee record is not found', async () => {
+  it('returns null when the employee record is not found', async () => {
     mockAuthAs(userId)
     vi.mocked(supabaseAdmin.from).mockReturnValueOnce(makeQueryBuilder(null) as never)
-    expect(await fetchIsAdmin()).toBe(false)
+    expect(await fetchNavRole()).toBe(null)
   })
 
-  it('returns false when the employee query fails', async () => {
+  it('returns null when the employee query fails', async () => {
     mockAuthAs(userId)
     vi.mocked(supabaseAdmin.from).mockReturnValueOnce(
       makeQueryBuilder(null, { message: 'query failed' }) as never,
     )
-    expect(await fetchIsAdmin()).toBe(false)
+    expect(await fetchNavRole()).toBe(null)
   })
 })
 
 describe('getNavLinks', () => {
   describe('when admin', () => {
-    const links = getNavLinks(true)
+    const links = getNavLinks('admin')
 
     it('includes Dashboard', () => {
       expect(links.some(l => l.href === '/dashboard')).toBe(true)
@@ -107,7 +107,7 @@ describe('getNavLinks', () => {
   })
 
   describe('when not admin', () => {
-    const links = getNavLinks(false)
+    const links = getNavLinks('employee')
 
     it('includes Dashboard', () => {
       expect(links.some(l => l.href === '/dashboard')).toBe(true)

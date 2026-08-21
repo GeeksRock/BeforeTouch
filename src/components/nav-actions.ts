@@ -1,22 +1,22 @@
 'use server'
-
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import type { NavRole } from './nav-links'
 
-export async function fetchIsAdmin(): Promise<boolean> {
+/** The signed-in person's nav role, or null when nobody is signed in. */
+export async function fetchNavRole(): Promise<NavRole | null> {
   try {
     const client = await createSupabaseServerClient()
     const { data: { user } } = await client.auth.getUser()
-    if (!user) return false
-
+    if (!user) return null
     const { data: employee } = await supabaseAdmin
       .from('employee')
       .select('is_admin')
       .eq('auth_user_id', user.id)
       .maybeSingle()
-
-    return employee?.is_admin === true
+    if (!employee) return null
+    return employee.is_admin === true ? 'admin' : 'employee'
   } catch {
-    return false
+    return null
   }
 }
