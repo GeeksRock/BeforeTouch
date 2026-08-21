@@ -20,7 +20,10 @@ import SetPasswordPage from './page'
 beforeEach(() => {
   vi.clearAllMocks()
   window.location.hash = '#token_hash=hash123&type=invite'
-  verifyOtp.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null })
+  verifyOtp.mockResolvedValue({
+    data: { session: { user: { id: 'u1', email: 'tech@example.com' } } },
+    error: null,
+  })
   getSession.mockResolvedValue({ data: { session: { user: { id: 'other' } } } })
   updateUser.mockResolvedValue({ error: null })
 })
@@ -34,6 +37,11 @@ describe('SetPasswordPage', () => {
     render(<SetPasswordPage />)
     expect(await screen.findByLabelText(/password/i)).toBeDefined()
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash123', type: 'invite' })
+  })
+
+  it('shows the email the invite was issued to', async () => {
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/tech@example\.com/)).toBeDefined()
   })
 
   it('shows an error and no form when the fragment has no token hash', async () => {
