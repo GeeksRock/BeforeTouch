@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-const setSession = vi.fn()
+const verifyOtp = vi.fn()
 const getSession = vi.fn()
 const updateUser = vi.fn()
 const replace = vi.fn()
 
 vi.mock('@supabase/ssr', () => ({
-  createBrowserClient: () => ({ auth: { setSession, getSession, updateUser } }),
+  createBrowserClient: () => ({ auth: { verifyOtp, getSession, updateUser } }),
 }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -17,12 +17,10 @@ vi.mock('next/navigation', () => ({
 
 import SetPasswordPage from './page'
 
-const TOKENS = '#access_token=abc123&refresh_token=xyz789&type=invite'
-
 beforeEach(() => {
   vi.clearAllMocks()
-  window.location.hash = TOKENS
-  setSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null })
+  window.location.hash = '#token_hash=hash123&type=invite'
+  verifyOtp.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null })
   getSession.mockResolvedValue({ data: { session: { user: { id: 'other' } } } })
   updateUser.mockResolvedValue({ error: null })
 })
@@ -32,16 +30,13 @@ afterEach(() => {
 })
 
 describe('SetPasswordPage', () => {
-  it('establishes the session from the tokens in the fragment', async () => {
+  it('verifies the token hash from the fragment', async () => {
     render(<SetPasswordPage />)
     expect(await screen.findByLabelText(/password/i)).toBeDefined()
-    expect(setSession).toHaveBeenCalledWith({
-      access_token: 'abc123',
-      refresh_token: 'xyz789',
-    })
+    expect(verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash123', type: 'invite' })
   })
 
-  it('shows an error and no form when the fragment has no tokens', async () => {
+  it('shows an error and no form when the fragment has no token hash', async () => {
     window.location.hash = '#error=access_denied&error_code=otp_expired'
     render(<SetPasswordPage />)
     expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
@@ -53,11 +48,11 @@ describe('SetPasswordPage', () => {
     render(<SetPasswordPage />)
     expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
     expect(getSession).not.toHaveBeenCalled()
-    expect(setSession).not.toHaveBeenCalled()
+    expect(verifyOtp).not.toHaveBeenCalled()
   })
 
-  it('shows an error when the tokens are rejected', async () => {
-    setSession.mockResolvedValue({ data: { session: null }, error: { message: 'bad token' } })
+  it('shows an error when the token hash is rejected', async () => {
+    verifyOtp.mockResolvedValue({ data: { session: null }, error: { message: 'expired' } })
     render(<SetPasswordPage />)
     expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
     expect(screen.queryByLabelText(/password/i)).toBeNull()

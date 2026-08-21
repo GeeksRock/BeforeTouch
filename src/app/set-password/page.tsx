@@ -19,16 +19,15 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1))
-    const access_token = params.get('access_token')
-    const refresh_token = params.get('refresh_token')
-    if (!access_token || !refresh_token) {
+    const token_hash = params.get('token_hash')
+    if (!token_hash) {
       setStatus('invalid')
       return
     }
     supabase.auth
-      .setSession({ access_token, refresh_token })
-      .then(({ error: sessionError }) => {
-        setStatus(sessionError ? 'invalid' : 'ready')
+      .verifyOtp({ token_hash, type: 'invite' })
+      .then(({ error: verifyError }) => {
+        setStatus(verifyError ? 'invalid' : 'ready')
       })
   }, [supabase])
 
