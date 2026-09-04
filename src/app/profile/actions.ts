@@ -31,7 +31,7 @@ export async function updateProfile(data: ProfileForm): Promise<{ error: string 
 
   const { error: updateError } = await supabaseAdmin
     .from('employee')
-    .update(data)
+    .update({ name: data.name, contact: data.contact })
     .eq('auth_user_id', user.id)
   if (updateError) return { error: updateError.message }
 

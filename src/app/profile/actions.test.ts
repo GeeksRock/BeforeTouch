@@ -128,3 +128,19 @@ describe('updateProfile', () => {
     expect(result.error).toBe('update failed')
   })
 })
+
+describe('updateProfile column allowlist', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockAuthAs(userId)
+  })
+
+  it('writes only name and contact, ignoring extra keys', async () => {
+    const updateBuilder = makeQueryBuilder(null)
+    vi.mocked(supabaseAdmin.from).mockReturnValueOnce(updateBuilder as never)
+
+    await updateProfile({ ...profileData, is_admin: true } as never)
+
+    expect(updateBuilder.update).toHaveBeenCalledWith(profileData)
+  })
+})
