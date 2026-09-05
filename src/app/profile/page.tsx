@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { fetchProfile, updateProfile } from './actions'
+import ChangePassword from './ChangePassword'
 import type { ProfileForm } from './actions'
 
 const defaultForm: ProfileForm = { name: '', contact: '' }
@@ -59,6 +60,7 @@ export default function ProfilePage() {
         </button>
 
       </form>
+      <ChangePassword />
     </main>
   )
 }
