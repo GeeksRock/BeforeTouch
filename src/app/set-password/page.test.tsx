@@ -81,6 +81,13 @@ describe('SetPasswordPage', () => {
     expect(verifyOtp).not.toHaveBeenCalled()
   })
 
+  it('tells password managers which account the password belongs to', async () => {
+    render(<SetPasswordPage />)
+    await screen.findByLabelText(/password/i)
+    const username = document.querySelector('input[autocomplete="username"]') as HTMLInputElement | null
+    expect(username?.value).toBe('tech@example.com')
+  })
+
   it('shows the email the invite was issued to', async () => {
     render(<SetPasswordPage />)
     expect(await screen.findByText(/tech@example\.com/)).toBeDefined()

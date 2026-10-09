@@ -82,6 +82,9 @@ export default function SetPasswordPage() {
       <h1 className="text-2xl font-bold mb-2">Set your password</h1>
       {verifiedUser?.email && <p className="text-sm mb-6">Setting a password for {verifiedUser.email}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {verifiedUser?.email && (
+          <input type="text" name="username" autoComplete="username" value={verifiedUser.email} readOnly hidden />
+        )}
         <label className="flex flex-col gap-1">
           Password
           <input
