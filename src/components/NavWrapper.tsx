@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Nav from './Nav'
 
-const HIDDEN_PATHS = ['/login', '/signup', '/setup']
+const HIDDEN_PATHS = ['/login', '/signup', '/setup', '/set-password']
 
 export default function NavWrapper() {
   const pathname = usePathname()
