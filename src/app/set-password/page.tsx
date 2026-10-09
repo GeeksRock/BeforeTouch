@@ -21,12 +21,13 @@ export default function SetPasswordPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1))
     const token_hash = params.get('token_hash')
-    if (!token_hash) {
+    const type = params.get('type')
+    if (!token_hash || (type !== 'invite' && type !== 'recovery')) {
       setStatus('invalid')
       return
     }
     supabase.auth
-      .verifyOtp({ token_hash, type: 'invite' })
+      .verifyOtp({ token_hash, type })
       .then(({ data, error: verifyError }) => {
         if (verifyError) {
           setStatus('invalid')
@@ -48,7 +49,7 @@ export default function SetPasswordPage() {
     setError(null)
     const { data: userData } = await supabase.auth.getUser()
     if (!verifiedUser || userData.user?.id !== verifiedUser.id) {
-      setError('Your invite session is no longer valid. Ask your administrator for a new invite.')
+      setError('This session is no longer valid. Please request a new link.')
       setPending(false)
       return
     }
@@ -62,7 +63,7 @@ export default function SetPasswordPage() {
   }
 
   if (status === 'checking') {
-    return <main className="max-w-sm mx-auto p-8"><p>Checking your invite link…</p></main>
+    return <main className="max-w-sm mx-auto p-8"><p>Checking your link…</p></main>
   }
 
   if (status === 'invalid') {
@@ -70,7 +71,7 @@ export default function SetPasswordPage() {
       <main className="max-w-sm mx-auto p-8">
         <h1 className="text-2xl font-bold mb-4">Set your password</h1>
         <p className="text-sm text-red-600">
-          This link is invalid or has expired. Ask your administrator to send a new invite.
+          This link is invalid or has expired. Please request a new one.
         </p>
       </main>
     )

@@ -60,6 +60,27 @@ describe('SetPasswordPage', () => {
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash123', type: 'invite' })
   })
 
+  it('verifies a recovery token with the recovery type', async () => {
+    window.location.hash = '#token_hash=hash123&type=recovery'
+    render(<SetPasswordPage />)
+    expect(await screen.findByLabelText(/password/i)).toBeDefined()
+    expect(verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash123', type: 'recovery' })
+  })
+
+  it('rejects an unknown link type without verifying', async () => {
+    window.location.hash = '#token_hash=hash123&type=signup'
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
+    expect(verifyOtp).not.toHaveBeenCalled()
+  })
+
+  it('rejects a link with no type without verifying', async () => {
+    window.location.hash = '#token_hash=hash123'
+    render(<SetPasswordPage />)
+    expect(await screen.findByText(/invalid or has expired/i)).toBeDefined()
+    expect(verifyOtp).not.toHaveBeenCalled()
+  })
+
   it('shows the email the invite was issued to', async () => {
     render(<SetPasswordPage />)
     expect(await screen.findByText(/tech@example\.com/)).toBeDefined()
